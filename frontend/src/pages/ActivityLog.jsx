@@ -12,7 +12,6 @@ const ActivityLog = () => {
   
   // FIXED: Decoupled Logic - check actual user data for tier and theme state for look
   const isDoctor = user?.role === 'doctor';
-  const isPremium = user?.is_premium;
   const isDark = theme === 'dark';
 
   const backendUrl = import.meta.env.VITE_API_URL;
