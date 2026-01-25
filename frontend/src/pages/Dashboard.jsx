@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
-// IMPORT THE NEW MODAL
 import RescheduleModal from "../components/RescheduleModal";
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
