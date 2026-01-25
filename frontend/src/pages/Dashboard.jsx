@@ -13,7 +13,6 @@ import { toast } from 'react-toastify';
 import RescheduleModal from "../components/RescheduleModal";
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } };
 
 const EmergencyTimer = ({ createdAt, onExpire, isPatient }) => {
   const [timeLeft, setTimeLeft] = useState(600);
