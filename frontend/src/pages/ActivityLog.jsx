@@ -38,7 +38,6 @@ const ActivityLog = () => {
         });
         setActivities(res.data);
       } catch (err) {
-        console.error("Error fetching full logs:", err);
       } finally {
         setLoading(false);
       }
