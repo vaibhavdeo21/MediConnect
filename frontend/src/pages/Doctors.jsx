@@ -14,7 +14,6 @@ const Doctors = () => {
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [filterEmergency, setFilterEmergency] = useState(false);
   const backendUrl = import.meta.env.VITE_API_URL;
 
