@@ -16,7 +16,6 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const backendUrl = import.meta.env.VITE_API_URL;
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
