@@ -40,6 +40,7 @@ const Doctors = () => {
   const handleBookClick = (doc) => {
     if (!user) { 
       toast.info("Please login to book."); 
+      navigate('/login'); 
       return; 
     }
     setSelectedDoctor(doc);
