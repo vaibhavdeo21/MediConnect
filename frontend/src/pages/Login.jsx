@@ -22,7 +22,6 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // RESTORED ORIGINAL ENDPOINT
       const res = await axios.post(`${backendUrl}/api/auth/login`, formData);
       localStorage.setItem('token', res.data.token);
       toast.success("Welcome Back!");
