@@ -26,7 +26,6 @@ const Login = () => {
       localStorage.setItem('token', res.data.token);
       toast.success("Welcome Back!");
       
-      // RESTORED YOUR REDIRECT FIX
       window.location.href = '/dashboard'; 
 
     } catch (err) {
