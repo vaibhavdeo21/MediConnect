@@ -1,14 +1,13 @@
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import Login from './pages/Login';      
+import Register from './pages/Register';
 import { AuthProvider } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Placeholder pages for now
-const Login = () => <div className="p-20 text-center">Login Page Coming Soon</div>;
-const Register = () => <div className="p-20 text-center">Register Page Coming Soon</div>;
-const Dashboard = () => <div className="p-20 text-center">Dashboard Coming Soon</div>;
+const Dashboard = () => <div className="p-20 text-center text-2xl">Dashboard Coming Soon...</div>;
 
 function App() {
   return (
