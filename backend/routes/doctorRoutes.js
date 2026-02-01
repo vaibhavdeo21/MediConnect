@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('../middleware/authMiddleware');
+// Import both functions from your existing controller
 const { getAllDoctors, setAvailability } = require('../controllers/doctorController');
-const authMiddleware = require('../middleware/authMiddleware'); 
-
-// Public route to see doctors
-router.get('/', getAllDoctors);
-
-// Protected route (Only logged in doctors can set availability)
-router.post('/availability', authMiddleware, setAvailability);
+router.put('/profile', authMiddleware, updateProfile);
+router.get('/', getAllDoctors); 
+// We will use this one later for the doctor dashboard
+router.post('/availability', setAvailability); 
 
 module.exports = router;

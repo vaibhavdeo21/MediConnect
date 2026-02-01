@@ -36,7 +36,21 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-slate-700">Hi, {user.fullName}</span>
+                
+                {/* --- INSERTION 1: DESKTOP MENU --- */}
+                {user.role === 'doctor' && (
+                  <Link 
+                    to="/doctor-profile" 
+                    className="text-slate-600 hover:text-primary font-medium mr-2"
+                  >
+                    My Profile
+                  </Link>
+                )}
+                {/* ---------------------------------- */}
+
+                <span className="text-sm font-semibold text-slate-700">
+                  Hi, {user.fullName || "User"}
+                </span>
                 <button onClick={logout} className="text-red-500 font-medium hover:underline">Logout</button>
               </div>
             )}
@@ -69,7 +83,18 @@ const Navbar = () => {
                   <Link to="/register" className="block py-2 text-primary font-bold">Get Started</Link>
                 </>
               ) : (
-                 <button onClick={logout} className="block py-2 text-red-500">Logout</button>
+                <>
+                  {/* --- INSERTION 2: MOBILE MENU --- */}
+                  {user.role === 'doctor' && (
+                    <Link to="/doctor-profile" className="block py-2 text-slate-600 font-medium">
+                      My Profile
+                    </Link>
+                  )}
+                  {/* ---------------------------------- */}
+                  
+                  <div className="py-2 text-slate-500 text-sm">Hi, {user.fullName || "User"}</div>
+                  <button onClick={logout} className="block py-2 text-red-500">Logout</button>
+                </>
               )}
             </div>
           </motion.div>

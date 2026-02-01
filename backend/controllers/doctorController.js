@@ -41,4 +41,28 @@ const setAvailability = async (req, res) => {
     }
 };
 
-module.exports = { getAllDoctors, setAvailability };
+const updateProfile = async (req, res) => {
+  const { specialization, consultationFee, experience, qualifications } = req.body;
+  const userId = req.user.id; // Comes from the Token
+
+  try {
+    const updatedDoc = await pool.query(
+      `UPDATE doctors 
+       SET specialization = $1, consultation_fee = $2, experience_years = $3, qualifications = $4
+       WHERE user_id = $5 
+       RETURNING *`,
+      [specialization, consultationFee, experience, qualifications, userId]
+    );
+
+    if (updatedDoc.rows.length === 0) {
+      return res.status(404).json({ message: "Doctor profile not found" });
+    }
+
+    res.json(updatedDoc.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+module.exports = { getAllDoctors, setAvailability, updateProfile };
