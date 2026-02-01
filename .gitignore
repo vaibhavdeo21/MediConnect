@@ -1,3 +1,11 @@
+node_modules/
+.env
+dist/
+build/
+.DS_Store
+coverage/
+package-lock.json
+
 # Logs
 logs
 *.log
