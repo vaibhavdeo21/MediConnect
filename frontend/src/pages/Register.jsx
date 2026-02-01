@@ -4,11 +4,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { User, Stethoscope, Lock, Mail, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
-// 1. IMPORT GOOGLE
 import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
-  const { register, googleLogin } = useContext(AuthContext); // 2. GET GOOGLE LOGIN
+  const { register, googleLogin } = useContext(AuthContext);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -28,7 +27,7 @@ const Register = () => {
     e.preventDefault();
     try {
       await register(formData);
-      toast.success("Registration Successful! Welcome aboard.");
+      toast.success("Registration Successful!");
       navigate('/');
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed");
@@ -51,11 +50,22 @@ const Register = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-           {/* ... (Keep your Role Selection buttons here) ... */}
-           
+           {/* Role Selection Toggles */}
            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
-            <button type="button" onClick={() => setFormData({ ...formData, role: 'patient' })} className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.role === 'patient' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Patient</button>
-            <button type="button" onClick={() => setFormData({ ...formData, role: 'doctor' })} className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.role === 'doctor' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Doctor</button>
+            <button 
+              type="button" 
+              onClick={() => setFormData({ ...formData, role: 'patient' })} 
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.role === 'patient' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Patient
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setFormData({ ...formData, role: 'doctor' })} 
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.role === 'doctor' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Doctor
+            </button>
           </div>
 
           <div className="space-y-4">
@@ -63,6 +73,7 @@ const Register = () => {
             <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} />
             <InputWithIcon icon={<Lock />} name="password" type="password" placeholder="Password" onChange={handleChange} />
             
+            {/* Show extra fields ONLY for email/password registration */}
             {formData.role === 'doctor' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                  <div className="relative">
@@ -74,7 +85,6 @@ const Register = () => {
                      <option value="General Physician">General Physician</option>
                      <option value="Cardiologist">Cardiologist</option>
                      <option value="Dermatologist">Dermatologist</option>
-                     <option value="Neurologist">Neurologist</option>
                    </select>
                 </div>
                 <InputWithIcon icon={<CreditCard />} name="consultationFee" type="number" placeholder="Consultation Fee ($)" onChange={handleChange} />
@@ -83,11 +93,11 @@ const Register = () => {
           </div>
 
           <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-teal-700 shadow-lg shadow-primary/30">
-            Sign Up
+            Sign Up with Email
           </button>
         </form>
 
-        {/* GOOGLE SIGN UP SECTION */}
+        {/* Google Sign Up */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200"></div>
@@ -99,13 +109,17 @@ const Register = () => {
 
         <div className="flex justify-center">
           <GoogleLogin
-            text="signup_with" // <--- This changes the text to "Sign up with Google"
+            text="signup_with"
             onSuccess={async (credentialResponse) => {
               try {
-                await googleLogin(credentialResponse);
-                toast.success("Account Created Successfully!");
+                // FIX: Pass formData.role here!
+                console.log("Register Page Sending Role:", formData.role);
+                await googleLogin(credentialResponse, formData.role); 
+                
+                toast.success(`Account Created as ${formData.role.toUpperCase()}!`);
                 navigate('/');
               } catch (err) {
+                console.error(err);
                 toast.error("Google Sign Up Failed");
               }
             }}
@@ -125,7 +139,7 @@ const Register = () => {
   );
 };
 
-// Helper Component (Same as before)
+// Helper Component
 const InputWithIcon = ({ icon, ...props }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

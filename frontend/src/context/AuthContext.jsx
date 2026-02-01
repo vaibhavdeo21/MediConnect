@@ -7,11 +7,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  
+  // Read the URL from .env (e.g., http://localhost:5000)
   const backendUrl = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
-    // Check if we have a token AND saved user data
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
 
@@ -20,18 +19,8 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, []);
-  const googleLogin = async (credentialResponse) => {
-    const res = await axios.post(`${backendUrl}/api/auth/google`, {
-      token: credentialResponse.credential
-    });
 
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-    setUser({ token: res.data.token, ...res.data.user });
-    return res.data;
-  };
   const login = async (email, password) => {
-    // 2. USE IT HERE (Template Literal)
     const res = await axios.post(`${backendUrl}/api/auth/login`, { email, password });
     localStorage.setItem("token", res.data.token);
     localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -40,20 +29,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    // 3. USE IT HERE TOO
     const res = await axios.post(`${backendUrl}/api/auth/register`, userData);
     localStorage.setItem("token", res.data.token);
     localStorage.setItem("user", JSON.stringify(res.data.user));
     setUser({ token: res.data.token, ...res.data.user });
   };
 
+  // FIX: Accept 'role' here
+  const googleLogin = async (credentialResponse, role) => {
+    console.log("AuthContext Sending Role:", role); // Debug Log
+
+    const res = await axios.post(`${backendUrl}/api/auth/google`, {
+      token: credentialResponse.credential,
+      role: role || 'patient' // Send role to backend
+    });
+
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+    setUser({ token: res.data.token, ...res.data.user });
+    return res.data;
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
   };
 
   return (
-    // FIX: Add 'googleLogin' to this list ⬇️
     <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
