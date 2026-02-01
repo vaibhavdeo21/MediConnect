@@ -20,7 +20,16 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, []);
+  const googleLogin = async (credentialResponse) => {
+    const res = await axios.post(`${backendUrl}/api/auth/google`, {
+      token: credentialResponse.credential
+    });
 
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+    setUser({ token: res.data.token, ...res.data.user });
+    return res.data;
+  };
   const login = async (email, password) => {
     // 2. USE IT HERE (Template Literal)
     const res = await axios.post(`${backendUrl}/api/auth/login`, { email, password });
@@ -44,7 +53,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    // FIX: Add 'googleLogin' to this list ⬇️
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

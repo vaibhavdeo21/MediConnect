@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser } = require('../controllers/authController');
 
-// Debugging log to see if this file is loading
+// FIX: Add 'googleLogin' inside these curly braces ⬇️
+const { registerUser, loginUser, googleLogin } = require('../controllers/authController');
+
 console.log("Auth Routes Loaded!"); 
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+router.post('/google', googleLogin);
 
 module.exports = router;

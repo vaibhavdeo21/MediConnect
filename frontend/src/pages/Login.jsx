@@ -4,9 +4,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Lock, Mail, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
-  const { login } = useContext(AuthContext);
+  const { login, googleLogin } = useContext(AuthContext);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -58,7 +59,7 @@ const Login = () => {
                 required
                 placeholder="Email Address"
                 onChange={handleChange}
-                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm"
+                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm transition-shadow"
               />
             </div>
             <div className="relative">
@@ -71,7 +72,7 @@ const Login = () => {
                 required
                 placeholder="Password"
                 onChange={handleChange}
-                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm"
+                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm transition-shadow"
               />
             </div>
           </div>
@@ -84,7 +85,40 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="text-center text-sm">
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-slate-500">Or continue with</span>
+          </div>
+        </div>
+
+        {/* Google Sign-In Button */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            text="signin_with"
+            onSuccess={async (credentialResponse) => {
+              try {
+                await googleLogin(credentialResponse);
+                toast.success("Google Login Successful!");
+                navigate('/');
+              } catch (err) {
+                console.error(err);
+                toast.error("Google Login Failed");
+              }
+            }}
+            onError={() => {
+              toast.error("Google Login Failed");
+            }}
+            theme="filled_blue"
+            shape="pill"
+            width="320"
+          />
+        </div>
+
+        <div className="text-center text-sm mt-6">
           <span className="text-slate-600">Don't have an account? </span>
           <Link to="/register" className="font-medium text-primary hover:text-teal-700">
             Register now
