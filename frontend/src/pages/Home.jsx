@@ -1,8 +1,12 @@
+import { useContext } from 'react'; // <--- 1. Import useContext
+import { AuthContext } from '../context/AuthContext'; // <--- 2. Import AuthContext
 import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
+  const { user } = useContext(AuthContext); // <--- 3. Get the user status
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
@@ -26,9 +30,14 @@ const Home = () => {
               </p>
               
               <div className="mt-8 flex gap-4">
-                <Link to="/register" className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-teal-700 transition shadow-xl shadow-teal-500/20">
+                {/* 4. SMART LINK: If user exists -> Go to Doctors. If not -> Go to Register */}
+                <Link 
+                  to={user ? "/doctors" : "/register"} 
+                  className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-teal-700 transition shadow-xl shadow-teal-500/20"
+                >
                   Book Appointment <ArrowRight className="w-5 h-5" />
                 </Link>
+
                 <Link to="/doctors" className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-8 py-3 rounded-full font-bold text-lg hover:bg-slate-50 transition">
                   Find Doctors
                 </Link>
@@ -36,14 +45,12 @@ const Home = () => {
             </motion.div>
           </div>
           
-          {/* Abstract Shape / Image Placeholder */}
           <motion.div 
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3, duration: 0.6 }}
             className="hidden lg:block absolute top-10 right-0 w-1/2 h-full"
           >
-             {/* You can replace this gradient with a real image later */}
              <div className="relative w-full h-[500px] bg-gradient-to-tr from-teal-100 to-blue-100 rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
                 <div className="absolute inset-0 flex items-center justify-center text-teal-800/20 font-bold text-4xl">
                    [Doctor Image Here]
@@ -53,7 +60,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section (Same as before) */}
       <section className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">

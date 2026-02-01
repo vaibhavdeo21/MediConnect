@@ -36,7 +36,7 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-slate-700">Hi, {user.email}</span>
+                <span className="text-sm font-semibold text-slate-700">Hi, {user.fullName}</span>
                 <button onClick={logout} className="text-red-500 font-medium hover:underline">Logout</button>
               </div>
             )}
