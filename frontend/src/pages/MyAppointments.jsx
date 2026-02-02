@@ -1,13 +1,19 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { Calendar, Clock, MapPin, CheckCircle, XCircle, Video } from 'lucide-react';
+import PrescriptionModal from '../components/PrescriptionModal';
+import RecordsModal from '../components/RecordsModal';
+import { Calendar, Clock, MapPin, CheckCircle, XCircle, Video, FileText, FolderOpen } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const MyAppointments = () => {
   const { user } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal States
+  const [selectedPrescriptionAppt, setSelectedPrescriptionAppt] = useState(null);
+  const [selectedRecordAppt, setSelectedRecordAppt] = useState(null);
 
   const backendUrl = import.meta.env.VITE_API_URL;
 
@@ -42,7 +48,7 @@ const MyAppointments = () => {
       );
       
       toast.success(`Appointment ${newStatus}`);
-      fetchAppointments(); // Refresh list to show new status immediately
+      fetchAppointments(); // Refresh list immediately
     } catch (err) {
       toast.error("Failed to update status");
       console.error(err);
@@ -53,7 +59,7 @@ const MyAppointments = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-slate-900 mb-8">
           {user?.role === 'doctor' ? 'Patient Requests' : 'My Appointments'}
         </h1>
@@ -103,16 +109,36 @@ const MyAppointments = () => {
                     {appt.status || 'Pending'}
                   </span>
 
-                  {/* VIDEO CALL BUTTON (Visible to everyone if Confirmed) */}
+                  {/* ACTION BUTTONS FOR CONFIRMED APPOINTMENTS */}
                   {appt.status === 'Confirmed' && (
-                    <a 
-                      href={`https://meet.jit.si/MediConnect-${appt.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition shadow-md whitespace-nowrap"
-                    >
-                      <Video className="h-4 w-4" /> Join Call
-                    </a>
+                    <div className="flex gap-2 flex-wrap justify-end">
+                        
+                        {/* 1. Join Video Call */}
+                        <a 
+                          href={`https://meet.jit.si/MediConnect-${appt.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition shadow-sm whitespace-nowrap"
+                        >
+                          <Video className="h-4 w-4" /> Join Call
+                        </a>
+
+                        {/* 2. Medical Records (Docs) */}
+                        <button
+                          onClick={() => setSelectedRecordAppt(appt)}
+                          className="flex items-center gap-2 bg-indigo-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition shadow-sm whitespace-nowrap"
+                        >
+                          <FolderOpen className="h-4 w-4" /> Docs
+                        </button>
+
+                        {/* 3. Prescription (Rx) */}
+                        <button
+                          onClick={() => setSelectedPrescriptionAppt(appt)}
+                          className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition shadow-sm whitespace-nowrap"
+                        >
+                          <FileText className="h-4 w-4" /> {user?.role === 'doctor' ? 'Rx' : 'View Rx'}
+                        </button>
+                    </div>
                   )}
 
                   {/* DOCTOR ACTIONS (Visible only to Doctors if Pending) */}
@@ -140,6 +166,27 @@ const MyAppointments = () => {
             ))}
           </div>
         )}
+
+        {/* PRESCRIPTION MODAL */}
+        {selectedPrescriptionAppt && (
+          <PrescriptionModal 
+            isOpen={!!selectedPrescriptionAppt}
+            onClose={() => setSelectedPrescriptionAppt(null)}
+            appointment={selectedPrescriptionAppt}
+            userRole={user?.role}
+          />
+        )}
+
+        {/* MEDICAL RECORDS MODAL */}
+        {selectedRecordAppt && (
+          <RecordsModal
+            isOpen={!!selectedRecordAppt}
+            onClose={() => setSelectedRecordAppt(null)}
+            appointment={selectedRecordAppt}
+            userRole={user?.role}
+          />
+        )}
+
       </div>
     </div>
   );

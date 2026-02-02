@@ -5,20 +5,31 @@ import { User, Mail, Phone, MapPin, Briefcase, IndianRupee, Clock, Calendar, Sav
 import { toast } from 'react-toastify';
 
 const Profile = () => {
-  const { user } = useContext(AuthContext);
+  const { user, updateUser } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
+  
+  // Form State
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     phone_number: '',
     specialization: '',
     consultation_fee: '',
-    availability: '',
+    availability: '', // This will be the final string sent to DB
     address: '',
     dob: ''
   });
 
+  // Helpers for the Availability Builder
+  const [schedule, setSchedule] = useState({
+    startDay: 'Mon',
+    endDay: 'Fri',
+    startTime: '09:00',
+    endTime: '17:00'
+  });
+
   const backendUrl = import.meta.env.VITE_API_URL;
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   // 1. Fetch Profile Data
   useEffect(() => {
@@ -29,7 +40,6 @@ const Profile = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Populate form with existing data
         setFormData({
             full_name: res.data.full_name || '',
             email: res.data.email || '',
@@ -50,23 +60,55 @@ const Profile = () => {
     if (user) fetchProfile();
   }, [user, backendUrl]);
 
-  // 2. Handle Input Change
+  // 2. Handle Text Input Change
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 3. Update Profile
+  // 3. Handle Schedule Dropdown Changes
+  const handleScheduleChange = (field, value) => {
+    // Update local schedule state
+    const newSchedule = { ...schedule, [field]: value };
+    setSchedule(newSchedule);
+
+    // Format Time to 12-Hour (e.g., 13:00 -> 01:00 PM)
+    const formatTime = (time) => {
+      if (!time) return "";
+      const [hour, minute] = time.split(':');
+      const h = parseInt(hour, 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const formattedHour = h % 12 || 12; // Convert 0 to 12
+      return `${formattedHour}:${minute} ${ampm}`;
+    };
+
+    // Construct the final string: "Mon - Fri, 09:00 AM - 05:00 PM"
+    const finalString = `${newSchedule.startDay} - ${newSchedule.endDay}, ${formatTime(newSchedule.startTime)} - ${formatTime(newSchedule.endTime)}`;
+    
+    // Update the main formData
+    setFormData(prev => ({ ...prev, availability: finalString }));
+  };
+
+  // 4. Update Profile (Submit)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
+      
       await axios.put(
         `${backendUrl}/api/users/profile`, 
         formData, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
       toast.success("Profile Updated Successfully!");
+
+      updateUser({ 
+        fullName: formData.full_name, 
+        phone: formData.phone_number 
+      });
+
     } catch (err) {
+      console.error(err);
       toast.error("Update Failed");
     }
   };
@@ -144,12 +186,59 @@ const Profile = () => {
                         </div>
                     </div>
 
-                    <div className="col-span-full">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Availability (e.g., Mon-Fri, 9AM-5PM)</label>
-                        <div className="relative">
-                            <Clock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-                            <input type="text" name="availability" value={formData.availability} onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-primary focus:border-primary" />
+                    {/* NEW AVAILABILITY BUILDER */}
+                    <div className="col-span-full bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <Clock className="h-4 w-4" /> Availability Settings
+                        </label>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                            {/* Days Selection */}
+                            <div>
+                                <label className="text-xs text-slate-500 font-semibold uppercase">From Day</label>
+                                <select 
+                                    className="w-full p-2 border rounded mt-1 bg-white"
+                                    value={schedule.startDay}
+                                    onChange={(e) => handleScheduleChange('startDay', e.target.value)}
+                                >
+                                    {days.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-500 font-semibold uppercase">To Day</label>
+                                <select 
+                                    className="w-full p-2 border rounded mt-1 bg-white"
+                                    value={schedule.endDay}
+                                    onChange={(e) => handleScheduleChange('endDay', e.target.value)}
+                                >
+                                    {days.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+
+                            {/* Time Selection */}
+                            <div>
+                                <label className="text-xs text-slate-500 font-semibold uppercase">Start Time</label>
+                                <input 
+                                    type="time" 
+                                    className="w-full p-2 border rounded mt-1 bg-white"
+                                    value={schedule.startTime}
+                                    onChange={(e) => handleScheduleChange('startTime', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-500 font-semibold uppercase">End Time</label>
+                                <input 
+                                    type="time" 
+                                    className="w-full p-2 border rounded mt-1 bg-white"
+                                    value={schedule.endTime}
+                                    onChange={(e) => handleScheduleChange('endTime', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Preview of what will be saved */}
+                        <div className="text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 mt-2">
+                            <span className="font-bold">Preview:</span> {formData.availability || "Please select days and times"}
                         </div>
                     </div>
                 </div>

@@ -6,6 +6,9 @@ const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const userRoutes = require('./routes/userRoutes');
 const prescriptionRoutes = require('./routes/prescriptionRoutes');
+const documentRoutes = require('./routes/documentRoutes');
+const path = require('path');
+
 require('dotenv').config();
 
 const app = express();
@@ -25,6 +28,8 @@ app.use('/api/doctors', doctorRoutes); // <--- This is the important one for you
 app.use('/api/appointments', appointmentRoutes); 
 app.use('/api/users', userRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/documents', documentRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

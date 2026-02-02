@@ -7,7 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Read the URL from .env (e.g., http://localhost:5000)
+  // Read the URL from .env
   const backendUrl = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem("user");
 
     if (token && savedUser) {
+      // Ensure we parse the user correctly
       setUser({ token, ...JSON.parse(savedUser) });
     }
     setLoading(false);
@@ -35,13 +36,12 @@ export const AuthProvider = ({ children }) => {
     setUser({ token: res.data.token, ...res.data.user });
   };
 
-  // FIX: Accept 'role' here
   const googleLogin = async (credentialResponse, role) => {
-    console.log("AuthContext Sending Role:", role); // Debug Log
+    console.log("AuthContext Sending Role:", role); 
 
     const res = await axios.post(`${backendUrl}/api/auth/google`, {
       token: credentialResponse.credential,
-      role: role || 'patient' // Send role to backend
+      role: role || 'patient'
     });
 
     localStorage.setItem("token", res.data.token);
@@ -56,8 +56,27 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // --- NEW FUNCTION: The Missing Piece ---
+  const updateUser = (updatedData) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null; // Safety check
+      
+      // 1. Merge existing user data with the new updates
+      const newUser = { ...prevUser, ...updatedData };
+      
+      // 2. Save to LocalStorage (so it persists on refresh)
+      // Note: We don't save the token inside the 'user' key in localStorage, usually just the details
+      // But based on your code structure, this is safe:
+      localStorage.setItem("user", JSON.stringify(newUser));
+      
+      // 3. Update State
+      return newUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
+    // Add 'updateUser' to the value object below
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

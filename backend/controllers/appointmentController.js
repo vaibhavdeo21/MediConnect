@@ -1,88 +1,113 @@
+const sendEmail = require('../utils/emailService');
 const pool = require('../db');
 
-// --- 1. BOOK APPOINTMENT CONTROLLER ---
+// --- 1. BOOK APPOINTMENT (With Email Notification) ---
 const bookAppointment = async (req, res) => {
-  console.log("--- STARTING BOOKING PROCESS ---"); 
   const { doctorId, appointmentDate, appointmentTime } = req.body;
   const userId = req.user.id; 
 
   try {
-    // A. CHECK IF USER EXISTS IN PATIENTS TABLE
-    let patientQuery = await pool.query("SELECT * FROM patients WHERE user_id = $1", [userId]);
+    // A. Check/Create Patient (Same as before)
+    let patientQuery = await pool.query("SELECT id, full_name FROM patients WHERE user_id = $1", [userId]);
     let patientId;
+    let patientName;
 
     if (patientQuery.rows.length > 0) {
       patientId = patientQuery.rows[0].id;
+      patientName = patientQuery.rows[0].full_name;
     } else {
-      console.log("Patient Not Found. Auto-Creating...");
-      // GET USER DETAILS
       const userDetails = await pool.query("SELECT full_name, phone_number FROM users WHERE id = $1", [userId]);
-      const userName = userDetails.rows[0]?.full_name || 'New Patient';
-      const userPhone = userDetails.rows[0]?.phone_number || '0000000000';
-
-      // B. CREATE PATIENT
+      patientName = userDetails.rows[0]?.full_name || 'Valued Patient';
+      const userPhone = userDetails.rows[0]?.phone_number || '';
       const newPatient = await pool.query(
         "INSERT INTO patients (user_id, full_name, phone_number) VALUES ($1, $2, $3) RETURNING id",
-        [userId, userName, userPhone]
+        [userId, patientName, userPhone]
       );
       patientId = newPatient.rows[0].id;
     }
 
-    // C. INSERT APPOINTMENT
+    // B. Insert Appointment (Same as before)
     const newAppointment = await pool.query(
       `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status) 
        VALUES ($1, $2, $3, $4, 'Pending') RETURNING *`,
       [patientId, doctorId, appointmentDate, appointmentTime]
     );
 
+    // --- C. NEW: SEND EMAIL TO DOCTOR ---
+    // 1. Get Doctor's Email
+    const doctorUser = await pool.query(
+      "SELECT u.email, d.full_name FROM doctors d JOIN users u ON d.user_id = u.id WHERE d.id = $1",
+      [doctorId]
+    );
+
+    if (doctorUser.rows.length > 0) {
+      const doctorEmail = doctorUser.rows[0].email;
+      const doctorName = doctorUser.rows[0].full_name;
+
+      const emailSubject = `New Appointment Request from ${patientName}`;
+      const emailBody = `
+        <h3>Hello Dr. ${doctorName},</h3>
+        <p>You have a new appointment request.</p>
+        <ul>
+          <li><strong>Patient:</strong> ${patientName}</li>
+          <li><strong>Date:</strong> ${appointmentDate}</li>
+          <li><strong>Time:</strong> ${appointmentTime}</li>
+        </ul>
+        <p>Please login to your dashboard to Accept or Decline.</p>
+      `;
+
+      // Send the email (Background process, don't await strictly)
+      sendEmail(doctorEmail, emailSubject, emailBody);
+    }
+
     res.json(newAppointment.rows[0]);
 
   } catch (err) {
-    console.error("SERVER ERROR:", err.message);
-    res.status(500).send("Server Error: " + err.message);
+    console.error("Booking Error:", err.message);
+    res.status(500).send("Server Error");
   }
 };
 
-// --- 2. GET MY APPOINTMENTS CONTROLLER ---
+// --- 2. GET APPOINTMENTS (Unified) ---
 const getMyAppointments = async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role; 
 
-    let query = "";
-    let queryParams = [userId];
+    // Base query: Get BOTH patient_name and doctor_name for everyone
+    let queryText = `
+      SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
+             p.full_name AS patient_name,
+             d.full_name AS doctor_name,
+             d.address,
+             p.phone_number AS patient_phone
+      FROM appointments a
+      JOIN doctors d ON a.doctor_id = d.id
+      JOIN patients p ON a.patient_id = p.id
+    `;
 
+    // Filter based on who is logged in
     if (role === 'doctor') {
-      // If Doctor: Show patients
-      query = `
-        SELECT a.id, a.appointment_date, a.appointment_time, a.status, p.full_name AS patient_name 
-        FROM appointments a
-        JOIN doctors d ON a.doctor_id = d.id
-        JOIN patients p ON a.patient_id = p.id
-        WHERE d.user_id = $1
-        ORDER BY a.appointment_date, a.appointment_time`;
+      queryText += ` WHERE d.user_id = $1`;
     } else {
-      // If Patient: Show doctors
-      query = `
-        SELECT a.id, a.appointment_date, a.appointment_time, a.status, d.full_name AS doctor_name, d.address
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        JOIN doctors d ON a.doctor_id = d.id
-        WHERE p.user_id = $1
-        ORDER BY a.appointment_date, a.appointment_time`;
+      queryText += ` WHERE p.user_id = $1`;
     }
 
-    const appointments = await pool.query(query, queryParams);
+    queryText += ` ORDER BY a.appointment_date, a.appointment_time`;
+
+    const appointments = await pool.query(queryText, [userId]);
     res.json(appointments.rows);
 
   } catch (err) {
-    console.error(err.message);
+    console.error("Fetch Error:", err.message);
     res.status(500).send("Server Error");
   }
 };
+
+// --- 3. UPDATE STATUS (With Email Notification) ---
 const updateAppointmentStatus = async (req, res) => {
-  const { id } = req.params; // Appointment ID
-  const { status } = req.body; // 'Confirmed' or 'Cancelled'
+  const { id } = req.params; 
+  const { status } = req.body; 
 
   try {
     const updatedAppt = await pool.query(
@@ -92,6 +117,31 @@ const updateAppointmentStatus = async (req, res) => {
 
     if (updatedAppt.rows.length === 0) {
       return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    const apptDetails = await pool.query(`
+      SELECT u.email, p.full_name, d.full_name as doctor_name, a.appointment_date, a.appointment_time
+      FROM appointments a
+      JOIN patients p ON a.patient_id = p.id
+      JOIN users u ON p.user_id = u.id
+      JOIN doctors d ON a.doctor_id = d.id
+      WHERE a.id = $1
+    `, [id]);
+
+    if (apptDetails.rows.length > 0) {
+      const { email, full_name, doctor_name, appointment_date, appointment_time } = apptDetails.rows[0];
+      
+      const emailSubject = `Appointment ${status}: Dr. ${doctor_name}`;
+      const color = status === 'Confirmed' ? 'green' : 'red';
+      
+      const emailBody = `
+        <h3>Hello ${full_name},</h3>
+        <p>Your appointment with <strong>Dr. ${doctor_name}</strong> has been <strong style="color:${color}">${status}</strong>.</p>
+        <p><strong>When:</strong> ${new Date(appointment_date).toDateString()} at ${appointment_time}</p>
+        ${status === 'Confirmed' ? '<p>Please login at the scheduled time to join the video call.</p>' : '<p>Please contact the clinic for more details.</p>'}
+      `;
+
+      sendEmail(email, emailSubject, emailBody);
     }
 
     res.json(updatedAppt.rows[0]);
