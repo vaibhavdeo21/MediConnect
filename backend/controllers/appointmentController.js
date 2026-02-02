@@ -77,6 +77,7 @@ const getMyAppointments = async (req, res) => {
     // Base query: Get BOTH patient_name and doctor_name for everyone
     let queryText = `
       SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
+             a.doctor_id,
              p.full_name AS patient_name,
              d.full_name AS doctor_name,
              d.address,

@@ -3,7 +3,8 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import PrescriptionModal from '../components/PrescriptionModal';
 import RecordsModal from '../components/RecordsModal';
-import { Calendar, Clock, MapPin, CheckCircle, XCircle, Video, FileText, FolderOpen } from 'lucide-react';
+import ReviewModal from '../components/ReviewModal'; // <--- Import Review Modal
+import { Calendar, Clock, MapPin, CheckCircle, XCircle, Video, FileText, FolderOpen, Star } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const MyAppointments = () => {
@@ -14,6 +15,7 @@ const MyAppointments = () => {
   // Modal States
   const [selectedPrescriptionAppt, setSelectedPrescriptionAppt] = useState(null);
   const [selectedRecordAppt, setSelectedRecordAppt] = useState(null);
+  const [selectedReviewDoctorId, setSelectedReviewDoctorId] = useState(null); // <--- For Reviews
 
   const backendUrl = import.meta.env.VITE_API_URL;
 
@@ -138,6 +140,16 @@ const MyAppointments = () => {
                         >
                           <FileText className="h-4 w-4" /> {user?.role === 'doctor' ? 'Rx' : 'View Rx'}
                         </button>
+
+                        {/* 4. Rate Doctor (Patients Only) */}
+                        {user?.role === 'patient' && (
+                          <button
+                            onClick={() => setSelectedReviewDoctorId(appt.doctor_id)}
+                            className="flex items-center gap-2 bg-yellow-50 text-yellow-600 border border-yellow-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-100 transition shadow-sm whitespace-nowrap"
+                          >
+                            <Star className="h-4 w-4" /> Rate
+                          </button>
+                        )}
                     </div>
                   )}
 
@@ -167,6 +179,8 @@ const MyAppointments = () => {
           </div>
         )}
 
+        {/* --- MODALS --- */}
+
         {/* PRESCRIPTION MODAL */}
         {selectedPrescriptionAppt && (
           <PrescriptionModal 
@@ -184,6 +198,16 @@ const MyAppointments = () => {
             onClose={() => setSelectedRecordAppt(null)}
             appointment={selectedRecordAppt}
             userRole={user?.role}
+          />
+        )}
+
+        {/* REVIEW MODAL */}
+        {selectedReviewDoctorId && (
+          <ReviewModal 
+            isOpen={!!selectedReviewDoctorId}
+            onClose={() => setSelectedReviewDoctorId(null)}
+            doctorId={selectedReviewDoctorId}
+            onSuccess={() => setSelectedReviewDoctorId(null)} 
           />
         )}
 
