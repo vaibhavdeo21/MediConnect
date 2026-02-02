@@ -2,6 +2,7 @@ const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -124,6 +125,72 @@ const googleLogin = async (req, res) => {
   } catch (err) {
     console.error("Google Login Error:", err);
     res.status(401).json({ message: "Invalid Google Token" });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (user.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save to DB (Expires in 10 mins)
+    await pool.query(
+      "UPDATE users SET reset_otp = $1, reset_otp_expiry = NOW() + INTERVAL '10 minutes' WHERE email = $2",
+      [otp, email]
+    );
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'MediConnect Password Reset OTP',
+      text: `Your OTP for password reset is: ${otp}. It expires in 10 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ message: "OTP sent to your email" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+  try {
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (user.rows.length === 0) return res.status(404).json({ message: "User not found" });
+
+    const dbUser = user.rows[0];
+
+    // Check match and expiry
+    if (dbUser.reset_otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+    
+    if (new Date() > new Date(dbUser.reset_otp_expiry)) {
+      return res.status(400).json({ message: "OTP Expired" });
+    }
+
+    res.json({ message: "OTP Verified" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
   }
 };
 
