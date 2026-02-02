@@ -5,7 +5,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Doctors from './pages/Doctors';
 import DoctorProfile from './pages/DoctorProfile';
-import MyAppointments from './pages/MyAppointments'; import { AuthProvider } from './context/AuthContext';
+import Profile from './pages/Profile';
+import MyAppointments from './pages/MyAppointments'; 
+import { AuthProvider } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ForgotPassword from './pages/ForgotPassword';
@@ -27,6 +29,7 @@ function App() {
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/my-appointments" element={<MyAppointments />} /> 
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
       </div>

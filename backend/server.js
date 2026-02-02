@@ -4,6 +4,8 @@ const pool = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const userRoutes = require('./routes/userRoutes');
+const prescriptionRoutes = require('./routes/prescriptionRoutes');
 require('dotenv').config();
 
 const app = express();
@@ -21,6 +23,8 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes); // <--- This is the important one for your issue
 app.use('/api/appointments', appointmentRoutes); 
+app.use('/api/users', userRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

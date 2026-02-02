@@ -18,7 +18,7 @@ const Navbar = () => {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          
+
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -30,22 +30,22 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-slate-600 hover:text-primary font-medium">Home</Link>
             <Link to="/doctors" className="text-slate-600 hover:text-primary font-medium">Find Doctors</Link>
-            
+
             {user ? (
               <div className="flex items-center gap-6">
                 {/* --- NEW LINK: MY APPOINTMENTS --- */}
-                <Link 
-                  to="/my-appointments" 
+                <Link
+                  to="/my-appointments"
                   className="flex items-center gap-2 text-slate-600 hover:text-primary font-medium"
                 >
                   <Calendar className="h-4 w-4" /> My Appointments
                 </Link>
 
                 <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-                  <span className="text-sm font-semibold text-slate-900 capitalize">
+                  <Link to="/profile" className="text-sm font-semibold text-slate-900 capitalize hover:text-primary">
                     Hi, {user.fullName || "User"}
-                  </span>
-                  <button 
+                  </Link>
+                  <button
                     onClick={handleLogout}
                     className="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 hover:text-red-600 transition"
                   >
@@ -77,17 +77,17 @@ const Navbar = () => {
         <div className="md:hidden bg-white border-t border-slate-100 py-4 px-4 space-y-4 shadow-lg">
           <Link to="/" className="block text-slate-600 font-medium" onClick={() => setIsOpen(false)}>Home</Link>
           <Link to="/doctors" className="block text-slate-600 font-medium" onClick={() => setIsOpen(false)}>Find Doctors</Link>
-          
+
           {user ? (
             <>
-              <Link 
-                to="/my-appointments" 
+              <Link
+                to="/my-appointments"
                 className="block text-primary font-bold flex items-center gap-2"
                 onClick={() => setIsOpen(false)}
               >
                 <Calendar className="h-4 w-4" /> My Appointments
               </Link>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="w-full text-left text-red-600 font-medium pt-2 border-t border-slate-100 mt-2"
               >
