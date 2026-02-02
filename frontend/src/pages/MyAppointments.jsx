@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { Calendar, Clock, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, CheckCircle, XCircle, Video } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const MyAppointments = () => {
@@ -21,6 +21,7 @@ const MyAppointments = () => {
       setAppointments(res.data);
     } catch (err) {
       console.error("Error fetching appointments:", err);
+      toast.error("Failed to load appointments");
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,7 @@ const MyAppointments = () => {
       );
       
       toast.success(`Appointment ${newStatus}`);
-      fetchAppointments(); // Refresh list to show new status
+      fetchAppointments(); // Refresh list to show new status immediately
     } catch (err) {
       toast.error("Failed to update status");
       console.error(err);
@@ -54,7 +55,7 @@ const MyAppointments = () => {
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-slate-900 mb-8">
-          {user.role === 'doctor' ? 'Patient Requests' : 'My Appointments'}
+          {user?.role === 'doctor' ? 'Patient Requests' : 'My Appointments'}
         </h1>
 
         {appointments.length === 0 ? (
@@ -67,22 +68,22 @@ const MyAppointments = () => {
         ) : (
           <div className="space-y-4">
             {appointments.map((appt) => (
-              <div key={appt.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div key={appt.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:shadow-md">
                 
-                {/* Appointment Info */}
+                {/* Left Side: Appointment Info */}
                 <div className="flex items-start gap-4">
                   <div className={`p-3 rounded-lg ${appt.status === 'Confirmed' ? 'bg-green-50' : 'bg-blue-50'}`}>
                     <Calendar className={`h-6 w-6 ${appt.status === 'Confirmed' ? 'text-green-600' : 'text-primary'}`} />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">
-                      {user.role === 'doctor' ? appt.patient_name : appt.doctor_name}
+                      {user?.role === 'doctor' ? appt.patient_name : appt.doctor_name}
                     </h3>
                     <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
                       <Clock className="h-4 w-4" /> 
                       {new Date(appt.appointment_date).toLocaleDateString()} at {appt.appointment_time}
                     </p>
-                    {user.role === 'patient' && (
+                    {user?.role === 'patient' && (
                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                          <MapPin className="h-3 w-3" /> {appt.address || "Virtual Clinic"}
                        </p>
@@ -90,8 +91,10 @@ const MyAppointments = () => {
                   </div>
                 </div>
 
-                {/* Status & Actions */}
-                <div className="flex items-center gap-3">
+                {/* Right Side: Status & Actions */}
+                <div className="flex flex-col md:flex-row items-end md:items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+                  
+                  {/* STATUS BADGE */}
                   <span className={`px-4 py-2 rounded-full text-sm font-medium ${
                     appt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
                     appt.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
@@ -100,20 +103,32 @@ const MyAppointments = () => {
                     {appt.status || 'Pending'}
                   </span>
 
-                  {/* DOCTOR BUTTONS - Only show if Pending */}
-                  {user.role === 'doctor' && appt.status === 'Pending' && (
-                    <div className="flex gap-2 ml-4">
+                  {/* VIDEO CALL BUTTON (Visible to everyone if Confirmed) */}
+                  {appt.status === 'Confirmed' && (
+                    <a 
+                      href={`https://meet.jit.si/MediConnect-${appt.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition shadow-md whitespace-nowrap"
+                    >
+                      <Video className="h-4 w-4" /> Join Call
+                    </a>
+                  )}
+
+                  {/* DOCTOR ACTIONS (Visible only to Doctors if Pending) */}
+                  {user?.role === 'doctor' && appt.status === 'Pending' && (
+                    <div className="flex gap-2">
                       <button 
                         onClick={() => handleStatusUpdate(appt.id, 'Confirmed')}
                         className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition"
-                        title="Accept"
+                        title="Accept Appointment"
                       >
                         <CheckCircle className="h-5 w-5" />
                       </button>
                       <button 
                         onClick={() => handleStatusUpdate(appt.id, 'Cancelled')}
                         className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition"
-                        title="Decline"
+                        title="Decline Appointment"
                       >
                         <XCircle className="h-5 w-5" />
                       </button>
