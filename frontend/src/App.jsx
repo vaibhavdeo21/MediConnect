@@ -7,6 +7,8 @@ import DoctorProfile from './pages/DoctorProfile';
 import { AuthProvider } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ForgotPassword from './pages/ForgotPassword';
+
 
 const Dashboard = () => <div className="p-20 text-center text-2xl">Dashboard Coming Soon...</div>;
 
@@ -21,6 +23,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/doctor-profile" element={<DoctorProfile />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
       </div>

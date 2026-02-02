@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // FIX: Add 'googleLogin' inside these curly braces ⬇️
-const { registerUser, loginUser, googleLogin } = require('../controllers/authController');
+const { registerUser, loginUser, googleLogin, forgotPassword, verifyOtp, resetPassword } = require('../controllers/authController');
 
 console.log("Auth Routes Loaded!"); 
 
