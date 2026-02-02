@@ -2,19 +2,25 @@ import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Key, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Key, Lock, Eye, EyeOff, XCircle, CheckCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
-  const [stage, setStage] = useState(1); // 1: Email, 2: OTP, 3: Password
+  const [stage, setStage] = useState(1);
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const backendUrl = import.meta.env.VITE_API_URL;
 
-  // Step 1: Send OTP
+  // Validation Logic
+  const passwordsMatch = newPassword === confirmPassword;
+  const showMismatchError = confirmPassword.length > 0 && !passwordsMatch;
+  const showMatchSuccess = confirmPassword.length > 0 && passwordsMatch;
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -29,7 +35,6 @@ const ForgotPassword = () => {
     }
   };
 
-  // Step 2: Verify OTP
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -44,12 +49,15 @@ const ForgotPassword = () => {
     }
   };
 
-  // Step 3: Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
+    
+    if (!passwordsMatch) {
+      return toast.error("Passwords do not match!");
+    }
+
     setLoading(true);
     try {
-      // We send OTP again just for double verification on backend
       await axios.post(`${backendUrl}/api/auth/reset-password`, { email, otp, newPassword });
       toast.success("Password Changed Successfully!");
       navigate('/login');
@@ -76,7 +84,7 @@ const ForgotPassword = () => {
           </p>
         </div>
 
-        {/* STAGE 1: EMAIL FORM */}
+        {/* STAGE 1: EMAIL */}
         {stage === 1 && (
           <form className="mt-8 space-y-6" onSubmit={handleSendOtp}>
             <div className="relative">
@@ -98,7 +106,7 @@ const ForgotPassword = () => {
           </form>
         )}
 
-        {/* STAGE 2: OTP FORM */}
+        {/* STAGE 2: OTP */}
         {stage === 2 && (
           <form className="mt-8 space-y-6" onSubmit={handleVerifyOtp}>
             <div className="relative">
@@ -120,23 +128,78 @@ const ForgotPassword = () => {
           </form>
         )}
 
-        {/* STAGE 3: NEW PASSWORD FORM */}
+        {/* STAGE 3: NEW PASSWORD */}
         {stage === 3 && (
           <form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400" />
+            <div className="space-y-4">
+              
+              {/* Password Field */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary"
+                  placeholder="New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <div 
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-slate-400 hover:text-primary"
+                  onMouseEnter={() => setShowPassword(true)}
+                  onMouseLeave={() => setShowPassword(false)}
+                >
+                  {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                </div>
               </div>
-              <input
-                type="password"
-                required
-                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary"
-                placeholder="New Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+
+              {/* Confirm Password Field with Validation */}
+              <div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className={`h-5 w-5 ${showMismatchError ? 'text-red-500' : 'text-slate-400'}`} />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 sm:text-sm transition-shadow
+                      ${showMismatchError 
+                        ? 'border-red-500 focus:ring-red-200 focus:border-red-500' 
+                        : 'border-slate-300 focus:ring-primary focus:border-transparent'
+                      }
+                    `}
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+
+                {/* Live Validation Messages */}
+                {showMismatchError && (
+                  <div className="flex items-center mt-1 text-xs text-red-500 animate-pulse">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Passwords do not match
+                  </div>
+                )}
+                {showMatchSuccess && (
+                  <div className="flex items-center mt-1 text-xs text-green-600">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Passwords match
+                  </div>
+                )}
+              </div>
+
             </div>
-            <button disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-primary hover:bg-teal-700 shadow-lg">
+            
+            <button 
+              type="submit" 
+              disabled={loading || showMismatchError} 
+              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-white transition-colors shadow-lg
+                ${showMismatchError ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-teal-700 shadow-primary/30'}
+              `}
+            >
               {loading ? "Resetting..." : "Reset Password"}
             </button>
           </form>

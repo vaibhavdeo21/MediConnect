@@ -2,7 +2,7 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { User, Stethoscope, Lock, Mail, CreditCard } from 'lucide-react';
+import { User, Stethoscope, Lock, Mail, CreditCard, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 
@@ -14,10 +14,18 @@ const Register = () => {
     fullName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     role: 'patient',
     specialization: '',
     consultationFee: ''
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  // VALIDATION HELPERS
+  const passwordsMatch = formData.password === formData.confirmPassword;
+  const showMismatchError = formData.confirmPassword.length > 0 && !passwordsMatch;
+  const showMatchSuccess = formData.confirmPassword.length > 0 && passwordsMatch;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,8 +33,13 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!passwordsMatch) {
+      return toast.error("Passwords do not match!");
+    }
+    
     try {
-      await register(formData);
+      const { confirmPassword, ...dataToSend } = formData;
+      await register(dataToSend);
       toast.success("Registration Successful!");
       navigate('/');
     } catch (err) {
@@ -50,7 +63,6 @@ const Register = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-           {/* Role Selection Toggles */}
            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
             <button 
               type="button" 
@@ -71,9 +83,67 @@ const Register = () => {
           <div className="space-y-4">
             <InputWithIcon icon={<User />} name="fullName" placeholder="Full Name" onChange={handleChange} autoComplete="name" />
             <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} autoComplete="email" />
-            <InputWithIcon icon={<Lock />} name="password" type="password" placeholder="Password" onChange={handleChange} autoComplete="new-password" />
             
-            {/* Show extra fields ONLY if Doctor is selected */}
+            {/* PASSWORD */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="text-slate-400 h-5 w-5" />
+              </div>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Password"
+                onChange={handleChange}
+                autoComplete="new-password"
+                className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm transition-shadow"
+              />
+              <div 
+                className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-slate-400 hover:text-primary"
+                onMouseEnter={() => setShowPassword(true)}
+                onMouseLeave={() => setShowPassword(false)}
+              >
+                {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+              </div>
+            </div>
+
+            {/* CONFIRM PASSWORD WITH LIVE VALIDATION */}
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className={`h-5 w-5 ${showMismatchError ? 'text-red-500' : 'text-slate-400'}`} />
+                </div>
+                <input
+                  name="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Confirm Password"
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 sm:text-sm transition-shadow
+                    ${showMismatchError 
+                      ? 'border-red-500 focus:ring-red-200 focus:border-red-500' 
+                      : 'border-slate-300 focus:ring-primary focus:border-transparent'
+                    }
+                  `}
+                />
+              </div>
+              
+              {/* Validation Message */}
+              {showMismatchError && (
+                <div className="flex items-center mt-1 text-xs text-red-500 animate-pulse">
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Passwords do not match
+                </div>
+              )}
+              {showMatchSuccess && (
+                <div className="flex items-center mt-1 text-xs text-green-600">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Passwords match
+                </div>
+              )}
+            </div>
+            
             {formData.role === 'doctor' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                  <div className="relative">
@@ -93,12 +163,17 @@ const Register = () => {
             )}
           </div>
 
-          <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-teal-700 shadow-lg shadow-primary/30">
+          <button 
+            type="submit" 
+            disabled={showMismatchError}
+            className={`w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white transition-colors shadow-lg
+              ${showMismatchError ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-teal-700 shadow-primary/30'}
+            `}
+          >
             Sign Up with Email
           </button>
         </form>
 
-        {/* Google Sign Up */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200"></div>
@@ -113,10 +188,7 @@ const Register = () => {
             text="signup_with"
             onSuccess={async (credentialResponse) => {
               try {
-                // Pass the Selected Role to the Backend!
-                console.log("Register Page Sending Role:", formData.role);
                 await googleLogin(credentialResponse, formData.role); 
-                
                 toast.success(`Account Created as ${formData.role.toUpperCase()}!`);
                 navigate('/');
               } catch (err) {
@@ -140,17 +212,12 @@ const Register = () => {
   );
 };
 
-// Helper Component for cleaner code
 const InputWithIcon = ({ icon, ...props }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
       <div className="text-slate-400 h-5 w-5">{icon}</div>
     </div>
-    <input 
-      {...props} 
-      required 
-      className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-shadow" 
-    />
+    <input {...props} required className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-shadow" />
   </div>
 );
 
