@@ -69,11 +69,11 @@ const Register = () => {
           </div>
 
           <div className="space-y-4">
-            <InputWithIcon icon={<User />} name="fullName" placeholder="Full Name" onChange={handleChange} />
-            <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} />
-            <InputWithIcon icon={<Lock />} name="password" type="password" placeholder="Password" onChange={handleChange} />
+            <InputWithIcon icon={<User />} name="fullName" placeholder="Full Name" onChange={handleChange} autoComplete="name" />
+            <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} autoComplete="email" />
+            <InputWithIcon icon={<Lock />} name="password" type="password" placeholder="Password" onChange={handleChange} autoComplete="new-password" />
             
-            {/* Show extra fields ONLY for email/password registration */}
+            {/* Show extra fields ONLY if Doctor is selected */}
             {formData.role === 'doctor' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                  <div className="relative">
@@ -85,6 +85,7 @@ const Register = () => {
                      <option value="General Physician">General Physician</option>
                      <option value="Cardiologist">Cardiologist</option>
                      <option value="Dermatologist">Dermatologist</option>
+                     <option value="Neurologist">Neurologist</option>
                    </select>
                 </div>
                 <InputWithIcon icon={<CreditCard />} name="consultationFee" type="number" placeholder="Consultation Fee ($)" onChange={handleChange} />
@@ -112,7 +113,7 @@ const Register = () => {
             text="signup_with"
             onSuccess={async (credentialResponse) => {
               try {
-                // FIX: Pass formData.role here!
+                // Pass the Selected Role to the Backend!
                 console.log("Register Page Sending Role:", formData.role);
                 await googleLogin(credentialResponse, formData.role); 
                 
@@ -139,13 +140,17 @@ const Register = () => {
   );
 };
 
-// Helper Component
+// Helper Component for cleaner code
 const InputWithIcon = ({ icon, ...props }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
       <div className="text-slate-400 h-5 w-5">{icon}</div>
     </div>
-    <input {...props} required className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-shadow" />
+    <input 
+      {...props} 
+      required 
+      className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-shadow" 
+    />
   </div>
 );
 

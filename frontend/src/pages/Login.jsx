@@ -59,6 +59,7 @@ const Login = () => {
                 required
                 placeholder="Email Address"
                 onChange={handleChange}
+                autoComplete="email"
                 className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm transition-shadow"
               />
             </div>
@@ -72,12 +73,12 @@ const Login = () => {
                 required
                 placeholder="Password"
                 onChange={handleChange}
+                autoComplete="current-password"
                 className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-primary focus:border-primary sm:text-sm transition-shadow"
               />
             </div>
           </div>
 
-          {/* Forgot Password Link --- */}
           <div className="flex items-center justify-end">
             <Link 
               to="/forgot-password" 
@@ -111,6 +112,7 @@ const Login = () => {
             text="signin_with"
             onSuccess={async (credentialResponse) => {
               try {
+                // Role defaults to patient if not specified, which is fine for login
                 await googleLogin(credentialResponse);
                 toast.success("Google Login Successful!");
                 navigate('/');

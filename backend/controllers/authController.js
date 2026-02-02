@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// --- 1. REGISTER USER ---
 const registerUser = async (req, res) => {
   const { email, password, role, fullName, specialization, consultationFee } = req.body;
   try {
@@ -23,9 +24,15 @@ const registerUser = async (req, res) => {
     const userId = newUser.rows[0].id;
 
     if (role === 'doctor') {
-      await pool.query('INSERT INTO doctors (user_id, full_name, specialization, consultation_fee) VALUES ($1, $2, $3, $4)', [userId, fullName, specialization, consultationFee]);
+      await pool.query(
+        'INSERT INTO doctors (user_id, full_name, specialization, consultation_fee) VALUES ($1, $2, $3, $4)', 
+        [userId, fullName, specialization, consultationFee]
+      );
     } else {
-      await pool.query('INSERT INTO patients (user_id, full_name) VALUES ($1, $2)', [userId, fullName]);
+      await pool.query(
+        'INSERT INTO patients (user_id, full_name) VALUES ($1, $2)', 
+        [userId, fullName]
+      );
     }
 
     const token = jwt.sign({ id: userId, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -36,6 +43,7 @@ const registerUser = async (req, res) => {
   }
 };
 
+// --- 2. LOGIN USER ---
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -68,11 +76,10 @@ const loginUser = async (req, res) => {
   }
 };
 
-// FIX: Google Login with Role Handling
+// --- 3. GOOGLE LOGIN ---
 const googleLogin = async (req, res) => {
-  const { token, role } = req.body; // <--- Role comes from Frontend
-  console.log("Backend Google Login. Role:", role);
-
+  const { token, role } = req.body;
+  
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
@@ -83,8 +90,7 @@ const googleLogin = async (req, res) => {
     let user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (user.rows.length === 0) {
-      // NEW USER LOGIC
-      const selectedRole = role || 'patient'; // Use provided role
+      const selectedRole = role || 'patient';
       
       const newUser = await pool.query(
         'INSERT INTO users (email, role) VALUES ($1, $2) RETURNING *',
@@ -94,7 +100,6 @@ const googleLogin = async (req, res) => {
       const userId = newUser.rows[0].id;
       
       if (selectedRole === 'doctor') {
-        // Create Doctor with DEFAULT values
         await pool.query(
           'INSERT INTO doctors (user_id, full_name, specialization, consultation_fee) VALUES ($1, $2, $3, $4)',
           [userId, name, 'General Physician', 0]
@@ -128,10 +133,14 @@ const googleLogin = async (req, res) => {
   }
 };
 
+// --- 4. FORGOT PASSWORD (SEND OTP) ---
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    // Trim email to prevent space errors
+    const cleanEmail = email ? email.trim() : "";
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+    
     if (user.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -142,8 +151,10 @@ const forgotPassword = async (req, res) => {
     // Save to DB (Expires in 10 mins)
     await pool.query(
       "UPDATE users SET reset_otp = $1, reset_otp_expiry = NOW() + INTERVAL '10 minutes' WHERE email = $2",
-      [otp, email]
+      [otp, cleanEmail]
     );
+
+    // Send Email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -151,9 +162,10 @@ const forgotPassword = async (req, res) => {
         pass: process.env.EMAIL_PASS,
       },
     });
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: email,
+      to: cleanEmail,
       subject: 'MediConnect Password Reset OTP',
       text: `Your OTP for password reset is: ${otp}. It expires in 10 minutes.`,
     };
@@ -163,15 +175,17 @@ const forgotPassword = async (req, res) => {
     res.json({ message: "OTP sent to your email" });
 
   } catch (err) {
-    console.error(err);
+    console.error("Forgot Password Error:", err.message);
     res.status(500).send("Server Error");
   }
 };
 
+// --- 5. VERIFY OTP ---
 const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const cleanEmail = email ? email.trim() : "";
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
     
     if (user.rows.length === 0) return res.status(404).json({ message: "User not found" });
 
@@ -189,18 +203,20 @@ const verifyOtp = async (req, res) => {
     res.json({ message: "OTP Verified" });
 
   } catch (err) {
-    console.error(err);
+    console.error("Verify OTP Error:", err.message);
     res.status(500).send("Server Error");
   }
 };
 
+// --- 6. RESET PASSWORD ---
 const resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
   try {
-    // We verify OTP again to be secure
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const cleanEmail = email ? email.trim() : "";
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
     const dbUser = user.rows[0];
 
+    // Verify OTP one last time for security
     if (dbUser.reset_otp !== otp || new Date() > new Date(dbUser.reset_otp_expiry)) {
       return res.status(400).json({ message: "Invalid or Expired OTP" });
     }
@@ -212,14 +228,15 @@ const resetPassword = async (req, res) => {
     // Update Password & Clear OTP
     await pool.query(
       "UPDATE users SET password_hash = $1, reset_otp = NULL, reset_otp_expiry = NULL WHERE email = $2",
-      [passwordHash, email]
+      [passwordHash, cleanEmail]
     );
 
     res.json({ message: "Password Reset Successful" });
 
   } catch (err) {
-    console.error(err);
+    console.error("Reset Password Error:", err.message);
     res.status(500).send("Server Error");
   }
 };
+
 module.exports = { registerUser, loginUser, googleLogin, forgotPassword, verifyOtp, resetPassword };
