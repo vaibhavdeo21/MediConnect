@@ -194,4 +194,32 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, googleLogin };
+const resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  try {
+    // We verify OTP again to be secure
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const dbUser = user.rows[0];
+
+    if (dbUser.reset_otp !== otp || new Date() > new Date(dbUser.reset_otp_expiry)) {
+      return res.status(400).json({ message: "Invalid or Expired OTP" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    // Update Password & Clear OTP
+    await pool.query(
+      "UPDATE users SET password_hash = $1, reset_otp = NULL, reset_otp_expiry = NULL WHERE email = $2",
+      [passwordHash, email]
+    );
+
+    res.json({ message: "Password Reset Successful" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
+};
+module.exports = { registerUser, loginUser, googleLogin, forgotPassword, verifyOtp, resetPassword };
