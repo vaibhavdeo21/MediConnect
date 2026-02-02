@@ -1,68 +1,66 @@
 const pool = require('../db');
 
-// Get all doctors (for the patient search page)
-const getAllDoctors = async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT users.id as user_id, doctors.id as doctor_id, doctors.full_name, doctors.specialization, doctors.consultation_fee FROM doctors JOIN users ON doctors.user_id = users.id'
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-// Set availability (Doctor only)
-const setAvailability = async (req, res) => {
-    // Expected body: { day: 'Monday', startTime: '09:00', endTime: '17:00' }
-    const { day, startTime, endTime } = req.body;
-    const userId = req.user.id; // Comes from JWT middleware
-
-    try {
-        // First get the doctor_id from the user_id
-        const doctor = await pool.query('SELECT id FROM doctors WHERE user_id = $1', [userId]);
-        
-        if (doctor.rows.length === 0) {
-            return res.status(404).json({ message: 'Doctor profile not found' });
-        }
-
-        const doctorId = doctor.rows[0].id;
-
-        const newAvailability = await pool.query(
-            'INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time) VALUES ($1, $2, $3, $4) RETURNING *',
-            [doctorId, day, startTime, endTime]
-        );
-
-        res.json(newAvailability.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-const updateProfile = async (req, res) => {
-  const { specialization, consultationFee, experience, qualifications } = req.body;
-  const userId = req.user.id; // Comes from the Token
-
+// --- 1. GET LOGGED-IN DOCTOR PROFILE ---
+const getDoctorProfile = async (req, res) => {
   try {
-    const updatedDoc = await pool.query(
-      `UPDATE doctors 
-       SET specialization = $1, consultation_fee = $2, experience_years = $3, qualifications = $4
-       WHERE user_id = $5 
-       RETURNING *`,
-      [specialization, consultationFee, experience, qualifications, userId]
+    // req.user.id comes from the authMiddleware
+    const doctor = await pool.query(
+      'SELECT * FROM doctors WHERE user_id = $1',
+      [req.user.id]
     );
 
-    if (updatedDoc.rows.length === 0) {
+    if (doctor.rows.length === 0) {
       return res.status(404).json({ message: "Doctor profile not found" });
     }
 
-    res.json(updatedDoc.rows[0]);
+    res.json(doctor.rows[0]);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
   }
 };
 
-module.exports = { getAllDoctors, setAvailability, updateProfile };
+// --- 2. UPDATE DOCTOR PROFILE ---
+const updateDoctorProfile = async (req, res) => {
+  const { full_name, specialization, consultation_fee, phone_number, experience_years, bio, address } = req.body;
+
+  try {
+    const updateQuery = `
+      UPDATE doctors 
+      SET full_name = $1, specialization = $2, consultation_fee = $3, 
+          phone_number = $4, experience_years = $5, bio = $6, address = $7
+      WHERE user_id = $8
+      RETURNING *;
+    `;
+
+    const updatedDoctor = await pool.query(updateQuery, [
+      full_name, 
+      specialization, 
+      consultation_fee, 
+      phone_number, 
+      experience_years, 
+      bio, 
+      address, 
+      req.user.id
+    ]);
+
+    res.json({ message: "Profile Updated Successfully", doctor: updatedDoctor.rows[0] });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+// --- 3. GET ALL DOCTORS (For Patients to see) ---
+const getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await pool.query('SELECT * FROM doctors ORDER BY id ASC');
+    res.json(doctors.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+module.exports = { getDoctorProfile, updateDoctorProfile, getAllDoctors };

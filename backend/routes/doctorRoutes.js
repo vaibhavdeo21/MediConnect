@@ -1,12 +1,18 @@
 const express = require('express');
 const router = express.Router();
-
-// FIX: Add 'updateProfile' to this list ⬇️
-const { getAllDoctors, setAvailability, updateProfile } = require('../controllers/doctorController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { 
+  getDoctorProfile, 
+  updateDoctorProfile, 
+  getAllDoctors 
+} = require('../controllers/doctorController');
 
+// Public Route: Get all doctors (for Find Doctors page)
 router.get('/', getAllDoctors);
-router.post('/availability', authMiddleware, setAvailability);
-router.put('/profile', authMiddleware, updateProfile); 
+
+// Protected Routes (Doctor Only)
+// Note: We use 'authMiddleware' to ensure only logged-in users access this
+router.get('/profile', authMiddleware, getDoctorProfile);
+router.put('/profile', authMiddleware, updateDoctorProfile);
 
 module.exports = router;

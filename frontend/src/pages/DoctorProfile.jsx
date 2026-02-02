@@ -1,145 +1,129 @@
-import { useState, useContext, useEffect } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { User, CreditCard, Stethoscope, Award, Briefcase } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { User, Stethoscope, CreditCard, Phone, MapPin, Award, FileText, Save, Loader } from 'lucide-react';
 
 const DoctorProfile = () => {
   const { user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState({
+    full_name: '',
     specialization: '',
-    consultationFee: '',
-    experience: '',
-    qualifications: ''
+    consultation_fee: '',
+    phone_number: '',
+    experience_years: '',
+    address: '',
+    bio: ''
   });
 
-  // Load current data (so they don't overwrite with blanks)
-  useEffect(() => {
-    // Ideally, you fetch the current profile from backend here.
-    // For now, we will start blank or rely on what we have.
-  }, []);
+  const backendUrl = import.meta.env.VITE_API_URL;
 
+  // 1. Fetch Profile Data on Load
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${backendUrl}/api/doctors/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFormData(res.data);
+      } catch (err) {
+        console.error("Error fetching profile", err);
+        toast.error("Failed to load profile data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) fetchProfile();
+  }, [user, backendUrl]);
+
+  // 2. Handle Input Change
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 3. Save Changes
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     try {
-      const backendUrl = import.meta.env.VITE_API_URL;
       const token = localStorage.getItem("token");
-
-      await axios.put(
-        `${backendUrl}/api/doctors/profile`, 
-        formData, 
-        { headers: { Authorization: token } }
-      );
-
+      await axios.put(`${backendUrl}/api/doctors/profile`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success("Profile Updated Successfully!");
     } catch (err) {
-      console.error(err);
       toast.error("Failed to update profile");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  if (!user || user.role !== 'doctor') {
-    return <div className="p-10 text-center">Access Denied. Doctors Only.</div>;
-  }
+  if (loading) return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin text-primary h-12 w-12" /></div>;
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-100">
-        <div className="bg-primary px-8 py-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <User className="h-6 w-6" /> Edit Doctor Profile
-          </h1>
-          <p className="text-teal-100 mt-1">Update your professional details so patients can find you.</p>
-        </div>
+    <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
         
+        {/* Header */}
+        <div className="bg-primary/10 p-6 flex items-center gap-4 border-b border-primary/20">
+          <div className="bg-primary text-white p-3 rounded-full">
+            <User className="h-8 w-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Doctor Profile</h1>
+            <p className="text-slate-600">Manage your public information</p>
+          </div>
+        </div>
+
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Specialization */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Stethoscope className="w-4 h-4 text-primary" /> Specialization
-              </label>
-              <select
-                name="specialization"
-                value={formData.specialization}
-                onChange={handleChange}
-                required
-                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-              >
-                <option value="">Select Specialization</option>
-                <option value="General Physician">General Physician</option>
-                <option value="Cardiologist">Cardiologist</option>
-                <option value="Dermatologist">Dermatologist</option>
-                <option value="Neurologist">Neurologist</option>
-                <option value="Pediatrician">Pediatrician</option>
-              </select>
-            </div>
-
-            {/* Consultation Fee */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" /> Consultation Fee ($)
-              </label>
-              <input
-                type="number"
-                name="consultationFee"
-                value={formData.consultationFee}
-                onChange={handleChange}
-                placeholder="e.g. 50"
-                required
-                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-
-            {/* Experience */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-primary" /> Years of Experience
-              </label>
-              <input
-                type="number"
-                name="experience"
-                value={formData.experience}
-                onChange={handleChange}
-                placeholder="e.g. 8"
-                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-
-            {/* Qualifications */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Award className="w-4 h-4 text-primary" /> Qualifications
-              </label>
-              <input
-                type="text"
-                name="qualifications"
-                value={formData.qualifications}
-                onChange={handleChange}
-                placeholder="e.g. MBBS, MD"
-                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
+            <InputGroup icon={<User />} label="Full Name" name="full_name" value={formData.full_name} onChange={handleChange} />
+            <InputGroup icon={<Stethoscope />} label="Specialization" name="specialization" value={formData.specialization} onChange={handleChange} />
+            <InputGroup icon={<CreditCard />} label="Consultation Fee ($)" name="consultation_fee" type="number" value={formData.consultation_fee} onChange={handleChange} />
+            <InputGroup icon={<Phone />} label="Phone Number" name="phone_number" value={formData.phone_number || ''} onChange={handleChange} placeholder="+1 234 567 890" />
+            <InputGroup icon={<Award />} label="Experience (Years)" name="experience_years" type="number" value={formData.experience_years || ''} onChange={handleChange} />
+            <InputGroup icon={<MapPin />} label="Clinic Address" name="address" value={formData.address || ''} onChange={handleChange} />
 
           </div>
 
+          {/* Bio - Full Width */}
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <FileText className="h-4 w-4 text-primary" /> Professional Bio
+            </label>
+            <textarea
+              name="bio"
+              rows="4"
+              value={formData.bio || ''}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+              placeholder="Tell patients about your expertise..."
+            ></textarea>
+          </div>
+
+          {/* Submit Button */}
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
               type="submit"
-              disabled={loading}
-              className="bg-primary text-white px-8 py-3 rounded-lg font-bold hover:bg-teal-700 transition shadow-lg shadow-teal-500/20 disabled:opacity-50"
+              disabled={saving}
+              className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-teal-700 transition shadow-lg shadow-primary/30 disabled:opacity-70"
             >
-              {loading ? "Saving..." : "Save Changes"}
+              {saving ? (
+                <>
+                  <Loader className="animate-spin h-5 w-5" /> Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" /> Save Changes
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -147,5 +131,18 @@ const DoctorProfile = () => {
     </div>
   );
 };
+
+// Helper Component
+const InputGroup = ({ icon, label, ...props }) => (
+  <div className="space-y-1">
+    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+      <span className="text-primary">{icon}</span> {label}
+    </label>
+    <input
+      {...props}
+      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+    />
+  </div>
+);
 
 export default DoctorProfile;
