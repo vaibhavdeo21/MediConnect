@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { bookAppointment, getMyAppointments } = require('../controllers/appointmentController');
-const authMiddleware = require('../middleware/authMiddleware');
+// 1. IMPORT MIDDLEWARE
+const authorize = require('../middleware/authMiddleware');// 2. IMPORT CONTROLLERS
+const { bookAppointment, getMyAppointments, updateAppointmentStatus } = require('../controllers/appointmentController');
+// Debugging: If these log "undefined", the server will crash
+if (!authorize) console.error("CRITICAL ERROR: 'authorize' middleware is missing!");
+if (!bookAppointment) console.error("CRITICAL ERROR: 'bookAppointment' function is missing!");
+if (!getMyAppointments) console.error("CRITICAL ERROR: 'getMyAppointments' function is missing!");
 
-router.post('/book', authMiddleware, bookAppointment);
-router.get('/my-appointments', authMiddleware, getMyAppointments);
+// Route 1: Book
+router.post('/book', authorize, bookAppointment);
+router.put('/status/:id', authorize, updateAppointmentStatus);
+// Route 2: Get List
+router.get('/my-appointments', authorize, getMyAppointments);
 
 module.exports = router;

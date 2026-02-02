@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
-import { User, Stethoscope, CreditCard, Phone, MapPin, Award, FileText, Save, Loader } from 'lucide-react';
+import { User, Stethoscope, CreditCard, Phone, MapPin, Award, FileText, Save, Loader, Clock } from 'lucide-react';
 
 const DoctorProfile = () => {
   const { user } = useContext(AuthContext);
@@ -16,12 +16,13 @@ const DoctorProfile = () => {
     phone_number: '',
     experience_years: '',
     address: '',
-    bio: ''
+    bio: '',
+    availability: '' // New State
   });
 
   const backendUrl = import.meta.env.VITE_API_URL;
 
-  // 1. Fetch Profile Data on Load
+  // 1. Fetch Profile Data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -90,6 +91,9 @@ const DoctorProfile = () => {
             <InputGroup icon={<Phone />} label="Phone Number" name="phone_number" value={formData.phone_number || ''} onChange={handleChange} placeholder="+1 234 567 890" />
             <InputGroup icon={<Award />} label="Experience (Years)" name="experience_years" type="number" value={formData.experience_years || ''} onChange={handleChange} />
             <InputGroup icon={<MapPin />} label="Clinic Address" name="address" value={formData.address || ''} onChange={handleChange} />
+            
+            {/* NEW: Availability Field */}
+            <InputGroup icon={<Clock />} label="Availability" name="availability" value={formData.availability || ''} onChange={handleChange} placeholder="e.g. Mon - Fri, 9 AM - 5 PM" />
 
           </div>
 

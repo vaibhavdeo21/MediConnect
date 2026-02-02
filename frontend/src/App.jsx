@@ -1,11 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import Login from './pages/Login';      
+import Login from './pages/Login';
 import Register from './pages/Register';
 import Doctors from './pages/Doctors';
 import DoctorProfile from './pages/DoctorProfile';
-import { AuthProvider } from './context/AuthContext';
+import MyAppointments from './pages/MyAppointments'; import { AuthProvider } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ForgotPassword from './pages/ForgotPassword';
@@ -25,6 +25,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/doctor-profile" element={<DoctorProfile />} />
           <Route path="/doctors" element={<Doctors />} />
+          <Route path="/my-appointments" element={<MyAppointments />} /> 
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
