@@ -67,4 +67,84 @@ const updateUserProfile = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
-module.exports = { getUserProfile, updateUserProfile };
+
+// --- GET DASHBOARD STATS ---
+const getDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
+    let stats = {};
+
+    if (role === 'doctor') {
+      // 1. Get Doctor ID
+      const doc = await pool.query("SELECT id FROM doctors WHERE user_id = $1", [userId]);
+      if (doc.rows.length > 0) {
+        const doctorId = doc.rows[0].id;
+
+        // 2. Run Counts
+        const totalAppts = await pool.query(
+          "SELECT COUNT(*) FROM appointments WHERE doctor_id = $1", 
+          [doctorId]
+        );
+        
+        const pending = await pool.query(
+          "SELECT COUNT(*) FROM appointments WHERE doctor_id = $1 AND status = 'Pending'", 
+          [doctorId]
+        );
+
+        // Get Today's Date in YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
+        const todays = await pool.query(
+          "SELECT COUNT(*) FROM appointments WHERE doctor_id = $1 AND appointment_date = $2", 
+          [doctorId, today]
+        );
+
+        const uniquePatients = await pool.query(
+            "SELECT COUNT(DISTINCT patient_id) FROM appointments WHERE doctor_id = $1",
+            [doctorId]
+        );
+
+        stats = {
+          total_appointments: totalAppts.rows[0].count,
+          pending_requests: pending.rows[0].count,
+          today_appointments: todays.rows[0].count,
+          total_patients: uniquePatients.rows[0].count
+        };
+      }
+    } else {
+      // PATIENT STATS
+      const pat = await pool.query("SELECT id FROM patients WHERE user_id = $1", [userId]);
+      if (pat.rows.length > 0) {
+        const patientId = pat.rows[0].id;
+
+        const total = await pool.query(
+          "SELECT COUNT(*) FROM appointments WHERE patient_id = $1", 
+          [patientId]
+        );
+
+        const pending = await pool.query(
+            "SELECT COUNT(*) FROM appointments WHERE patient_id = $1 AND status = 'Pending'", 
+            [patientId]
+          );
+
+        const confirmed = await pool.query(
+          "SELECT COUNT(*) FROM appointments WHERE patient_id = $1 AND status = 'Confirmed'", 
+          [patientId]
+        );
+
+        stats = {
+          total_appointments: total.rows[0].count,
+          pending: pending.rows[0].count,
+          confirmed: confirmed.rows[0].count
+        };
+      }
+    }
+
+    res.json(stats);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+};
+module.exports = { getUserProfile, updateUserProfile, getDashboardStats };

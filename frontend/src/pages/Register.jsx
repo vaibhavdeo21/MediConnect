@@ -1,6 +1,6 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react'; // <--- Added useEffect
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'; // <--- Added useSearchParams
 import { toast } from 'react-toastify';
 import { User, Stethoscope, Lock, Mail, CreditCard, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,16 +9,25 @@ import { GoogleLogin } from '@react-oauth/google';
 const Register = () => {
   const { register, googleLogin } = useContext(AuthContext);
   const navigate = useNavigate();
-  
+  const [searchParams] = useSearchParams(); // <--- Get URL Params
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'patient',
+    role: 'patient', // Default role
     specialization: '',
     consultationFee: ''
   });
+
+  // --- NEW: Update Role based on URL (?role=doctor) ---
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    if (roleParam === 'doctor' || roleParam === 'patient') {
+      setFormData(prev => ({ ...prev, role: roleParam }));
+    }
+  }, [searchParams]);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -63,6 +72,7 @@ const Register = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+           {/* Role Selection Buttons */}
            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
             <button 
               type="button" 
@@ -81,8 +91,8 @@ const Register = () => {
           </div>
 
           <div className="space-y-4">
-            <InputWithIcon icon={<User />} name="fullName" placeholder="Full Name" onChange={handleChange} autoComplete="name" />
-            <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} autoComplete="email" />
+            <InputWithIcon icon={<User />} name="fullName" placeholder="Full Name" onChange={handleChange} autoComplete="name" value={formData.fullName} />
+            <InputWithIcon icon={<Mail />} name="email" type="email" placeholder="Email Address" onChange={handleChange} autoComplete="email" value={formData.email} />
             
             {/* PASSWORD */}
             <div className="relative">
@@ -144,6 +154,7 @@ const Register = () => {
               )}
             </div>
             
+            {/* DOCTOR SPECIFIC FIELDS */}
             {formData.role === 'doctor' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                  <div className="relative">
