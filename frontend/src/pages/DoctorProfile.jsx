@@ -47,7 +47,7 @@ const DoctorProfile = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 3. Save Changes
+  // 3. Save Changes 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);

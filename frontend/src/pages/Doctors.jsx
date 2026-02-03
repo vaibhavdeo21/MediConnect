@@ -1,29 +1,24 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // <--- Import Navigate
-import { AuthContext } from '../context/AuthContext'; // <--- Import Auth
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import BookingModal from '../components/BookingModal';
-import { Search, MapPin, Star, IndianRupee, Clock, Lock } from 'lucide-react';
+import { Search, Star, IndianRupee, Clock, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Doctors = () => {
-  const { user } = useContext(AuthContext); // <--- Get User Status
-  const navigate = useNavigate(); // <--- Init Router
-  
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-
   const backendUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchDoctors = async () => {
-      try {
-        const res = await axios.get(`${backendUrl}/api/doctors`);
-        setDoctors(res.data);
-      } catch (err) {
-        console.error("Error fetching doctors:", err);
-      }
+      try { const res = await axios.get(`${backendUrl}/api/doctors`); setDoctors(res.data); } 
+      catch (err) { console.error("Error fetching doctors:", err); }
     };
     fetchDoctors();
   }, [backendUrl]);
@@ -33,106 +28,93 @@ const Doctors = () => {
     doc.specialization.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // --- NEW: Handle Booking Click ---
   const handleBookClick = (doc) => {
-    if (!user) {
-      toast.info("Please login to view details and book.");
-      navigate('/login');
-      return;
-    }
+    if (!user) { toast.info("Please login to book."); navigate('/login'); return; }
     setSelectedDoctor(doc);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 py-16 px-4 font-sans">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-slate-900">Find Your Specialist</h1>
-          <p className="text-slate-600 mt-2">Book appointments with top doctors near you</p>
+        {/* Animated Header */}
+        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-widest mb-4">
+            <ShieldCheck className="h-3 w-3" /> Verified Specialists
+          </div>
+          <h1 className="text-5xl font-serif font-bold text-slate-900 mb-4">Find Your Specialist</h1>
           
-          <div className="mt-8 max-w-md mx-auto relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+          <div className="mt-8 max-w-lg mx-auto relative group">
+            <Search className="absolute left-4 top-4 h-5 w-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
             <input 
-              type="text" 
-              placeholder="Search doctor or specialization..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-full border border-slate-200 shadow-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              type="text" placeholder="Search doctor..." 
+              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 rounded-xl border-0 shadow-xl shadow-slate-200/50 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
             />
           </div>
-        </div>
+        </motion.div>
 
-        {/* Doctor Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDoctors.map((doc) => (
-            <div key={doc.id} className="bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden flex flex-col relative">
-              
-              {/* --- BLURRED CONTENT LOGIC --- */}
-              <div className={`p-6 flex-1 transition-all duration-300 ${!user ? 'blur-sm select-none grayscale opacity-70' : ''}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">{doc.full_name}</h2>
-                    <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full font-semibold mt-1">
-                      {doc.specialization}
-                    </span>
-                  </div>
-                  <div className="bg-yellow-50 p-2 rounded-lg flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-bold text-slate-700">4.8</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm text-slate-500">
-                  <p className="flex items-center gap-2">
-                    <IndianRupee className="h-4 w-4" /> 
-                    <span className="font-medium text-slate-900">₹{doc.consultation_fee}</span> Consultation Fee
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> 
-                    {doc.availability || 'Mon-Fri, 9AM-5PM'}
-                  </p>
-                </div>
-              </div>
-
-              {/* --- LOGIN OVERLAY (If not logged in) --- */}
-              {!user && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
-                    <div className="bg-white/90 p-4 rounded-full shadow-lg mb-2">
-                        <Lock className="h-6 w-6 text-slate-700" />
+        {/* Animated Grid */}
+        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <AnimatePresence>
+            {filteredDoctors.map((doc) => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+                key={doc.id} 
+                className="group bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-100"
+              >
+                {/* Gradient Header */}
+                <div className="h-28 bg-gradient-to-br from-emerald-900 to-slate-900 relative">
+                    <div className="absolute inset-0 bg-white/5 opacity-30"></div>
+                    <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 border border-white/20">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                        <span className="text-xs font-bold text-white">4.9</span>
                     </div>
                 </div>
-              )}
 
-              {/* Footer Button */}
-              <div className="p-4 bg-slate-50 border-t border-slate-100 relative z-20">
-                <button 
-                  onClick={() => handleBookClick(doc)} // Use new handler
-                  className={`w-full font-bold py-2 rounded-lg transition shadow-lg ${!user ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-primary hover:bg-teal-700 text-white shadow-teal-500/20'}`}
-                >
-                  {!user ? 'Login to View Details' : 'Book Appointment'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+                <div className="p-6 relative">
+                    {/* Floating Avatar */}
+                    <div className="absolute -top-12 left-6 h-20 w-20 bg-white rounded-2xl p-1 shadow-lg transform group-hover:scale-105 transition-transform">
+                        <div className="h-full w-full bg-slate-100 rounded-xl flex items-center justify-center text-2xl font-serif font-bold text-slate-400">
+                            {doc.full_name.charAt(0)}
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 space-y-1">
+                        <p className="text-emerald-600 text-xs font-bold uppercase tracking-widest">{doc.specialization}</p>
+                        <h2 className={`text-2xl font-serif font-bold text-slate-900 transition-all ${!user ? 'blur-sm opacity-50' : ''}`}>
+                            {user ? `Dr. ${doc.full_name}` : 'Dr. Hidden Name'}
+                        </h2>
+                    </div>
 
-        {filteredDoctors.length === 0 && (
-          <div className="text-center py-20 text-slate-400">
-            No doctors found matching your search.
-          </div>
-        )}
+                    <div className="mt-6 space-y-3">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <Clock className="h-4 w-4 text-emerald-600" />
+                            <span className="text-sm font-medium text-slate-700">{doc.availability || 'Mon-Fri, 9AM-5PM'}</span>
+                        </div>
+                        <div className={`flex items-center gap-3 px-2 ${!user ? 'blur-sm opacity-50' : ''}`}>
+                            <IndianRupee className="h-4 w-4 text-slate-400" />
+                            <span className="text-sm font-bold text-slate-900">₹{doc.consultation_fee}</span>
+                        </div>
+                    </div>
 
-        {/* BOOKING MODAL */}
-        {selectedDoctor && (
-          <BookingModal 
-            isOpen={!!selectedDoctor}
-            onClose={() => setSelectedDoctor(null)}
-            doctor={selectedDoctor}
-          />
-        )}
+                    <motion.button 
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={() => handleBookClick(doc)}
+                        className={`w-full mt-6 py-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-lg flex items-center justify-center gap-2
+                            ${!user ? 'bg-slate-900 text-white hover:bg-black' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/30'}`}
+                    >
+                        {!user ? <><Lock className="h-4 w-4" /> Login to Book</> : 'Book Appointment'}
+                    </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
 
+        {selectedDoctor && <BookingModal isOpen={!!selectedDoctor} onClose={() => setSelectedDoctor(null)} doctor={selectedDoctor} />}
       </div>
     </div>
   );
