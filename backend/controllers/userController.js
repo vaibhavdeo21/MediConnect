@@ -33,7 +33,6 @@ const getUserProfile = async (req, res) => {
 };
 
 // --- 2. UPDATE USER PROFILE ---
-// --- 2. UPDATE USER PROFILE ---
 const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -147,4 +146,66 @@ const getDashboardStats = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
-module.exports = { getUserProfile, updateUserProfile, getDashboardStats };
+
+const getReferralData = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT referral_code, referral_count FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send("Server Error");
+  }
+};
+
+const registerUser = async (req, res) => {
+  const { fullName, email, password, role, referralCode } = req.body;
+
+  try {
+    // 1. Basic validation (Check if user exists)
+    const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // 2. Hash Password (Assuming you use bcrypt)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 3. Handle Referral Logic
+    let referredBy = null;
+    if (referralCode) {
+      const referrer = await pool.query("SELECT referral_code FROM users WHERE referral_code = $1", [referralCode]);
+      if (referrer.rows.length > 0) {
+        referredBy = referralCode;
+        // Increment the referrer's count immediately
+        await pool.query("UPDATE users SET referral_count = referral_count + 1 WHERE referral_code = $1", [referralCode]);
+      }
+    }
+
+    // 4. Create the new user
+    // We generate a unique referral code for the NEW user as well
+    const newReferralCode = 'MC-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+    const newUser = await pool.query(
+      "INSERT INTO users (email, password, role, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+      [email, hashedPassword, role, newReferralCode, referredBy]
+    );
+
+    const userId = newUser.rows[0].id;
+
+    // 5. Insert into Role-specific table (patients or doctors)
+    if (role === 'doctor') {
+      await pool.query("INSERT INTO doctors (user_id, full_name) VALUES ($1, $2)", [userId, fullName]);
+    } else {
+      await pool.query("INSERT INTO patients (user_id, full_name) VALUES ($1, $2)", [userId, fullName]);
+    }
+
+    res.status(201).json({ success: "User registered successfully" });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+module.exports = { getUserProfile, updateUserProfile, getDashboardStats, getReferralData, registerUser };
