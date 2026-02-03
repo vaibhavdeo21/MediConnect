@@ -1,39 +1,65 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from './context/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { AnimatePresence } from 'framer-motion';
+
+// Layout Components
 import Navbar from './components/Navbar';
+import Chatbot from './components/Chatbot';
+
+// Page Components
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Doctors from './pages/Doctors';
-import DoctorProfile from './pages/DoctorProfile';
 import Profile from './pages/Profile';
-import MyAppointments from './pages/MyAppointments'; 
-import { AuthProvider } from './context/AuthContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import ForgotPassword from './pages/ForgotPassword';
+import MyAppointments from './pages/MyAppointments';
+import Subscribe from './pages/Subscribe';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PremiumPerks from './pages/PremiumPerks';
 
+const AppContent = () => {
+  const location = useLocation();
+  const { theme } = useContext(AuthContext);
+  const isPremium = theme === 'premium';
 
-const Dashboard = () => <div className="p-20 text-center text-2xl">Dashboard Coming Soon...</div>;
-
-function App() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <Routes>
+    <div className={`min-h-screen transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-white'}`}>
+      <Navbar />
+      
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/doctor-profile" element={<DoctorProfile />} />
           <Route path="/doctors" element={<Doctors />} />
-          <Route path="/my-appointments" element={<MyAppointments />} /> 
-          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/my-appointments" element={<MyAppointments />} />
+          <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/premium-perks" element={<PremiumPerks />} />
+          <Route path="*" element={<Home />} />
         </Routes>
-        <ToastContainer position="top-right" autoClose={3000} />
-      </div>
-    </AuthProvider>
+      </AnimatePresence>
+
+      <Chatbot />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <>
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        theme="colored"
+      />
+      {/* No <Router> here anymore! */}
+      <AppContent />
+    </>
   );
 }
 

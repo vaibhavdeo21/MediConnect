@@ -1,7 +1,7 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { MessageSquare, X, Send, Sparkles } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -9,21 +9,23 @@ const Chatbot = () => {
   const { user, theme } = useContext(AuthContext);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'system', text: 'Hello! I am your AI Health Assistant. Ask me anything.' }
+    { role: 'ai', text: "Hello! I am your **MediConnect AI Assistant**. How can I help you with your health queries today?" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const scrollRef = useRef(null);
+
+  const isPremium = theme === 'premium';
   const backendUrl = import.meta.env.VITE_API_URL;
 
-  // Colors based on theme
-  const isPremium = theme === 'premium';
-  const bgColor = isPremium ? 'bg-slate-900 border-yellow-500/50' : 'bg-white border-slate-200';
-  const headerColor = isPremium ? 'bg-gradient-to-r from-yellow-600 to-yellow-800' : 'bg-primary';
-  const textColor = isPremium ? 'text-yellow-50' : 'text-slate-800';
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
 
     const userMsg = { role: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
@@ -32,85 +34,119 @@ const Chatbot = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(`${backendUrl}/api/ai/chat`, 
+      const res = await axios.post(`${backendUrl}/api/ai/chat`,
         { message: input },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
       setMessages(prev => [...prev, { role: 'ai', text: res.data.reply }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'system', text: 'Sorry, I am having trouble connecting right now.' }]);
+      setMessages(prev => [...prev, { role: 'ai', text: "I'm experiencing a high volume of queries. Please try again in a moment." }]);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user) return null; // Only for logged in users
+  if (!user || !isPremium) return null; // Exclusive for Premium Users
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-8 right-8 z-[9999]">
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={`w-80 h-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden border ${bgColor} mb-4`}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20, transformOrigin: 'bottom right' }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            className="w-[380px] h-[550px] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-yellow-500/20 bg-slate-950 mb-6"
           >
             {/* Header */}
-            <div className={`${headerColor} p-4 text-white flex justify-between items-center`}>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                <h3 className="font-bold">AI Health Assistant</h3>
-              </div>
-              <button onClick={() => setIsOpen(false)}><X className="h-5 w-5" /></button>
-            </div>
-
-            {/* Messages */}
-            <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${isPremium ? 'bg-slate-800' : 'bg-slate-50'}`}>
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-lg p-3 text-sm ${
-                    msg.role === 'user' 
-                      ? (isPremium ? 'bg-yellow-600 text-white' : 'bg-blue-600 text-white') 
-                      : (isPremium ? 'bg-slate-700 text-yellow-100' : 'bg-white border border-slate-200 text-slate-700')
-                  }`}>
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
-                  </div>
+            <div className="bg-gradient-to-r from-yellow-600 to-yellow-800 p-5 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                  <Sparkles className="h-5 w-5 text-yellow-200" />
                 </div>
-              ))}
-              {loading && <div className="text-xs text-slate-400 animate-pulse">Thinking...</div>}
+                <div>
+                  <h3 className="font-serif font-bold text-sm tracking-wide">Elite AI Assistant</h3>
+                  <p className="text-[10px] text-yellow-200 uppercase font-black tracking-tighter">Powered by Gemini Pro</p>
+                </div>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="hover:bg-black/20 p-1 rounded-full transition-colors">
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Input */}
-            <div className={`p-3 border-t ${isPremium ? 'border-slate-700 bg-slate-900' : 'border-slate-100 bg-white'} flex gap-2`}>
-              <input 
-                type="text" 
+            {/* Chat Area */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
+              {messages.map((msg, idx) => (
+                <motion.div
+                  initial={{ opacity: 0, x: msg.role === 'user' ? 10 : -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-lg ${msg.role === 'user'
+                      ? 'bg-yellow-600 text-white rounded-tr-none'
+                      : 'bg-slate-900 text-yellow-50 border border-yellow-500/10 rounded-tl-none'
+                    }`}>
+                    <div className="flex items-center gap-2 mb-1 opacity-50 text-[10px] font-bold uppercase">
+                      {msg.role === 'user' ? <><User className="h-3 w-3" /> You</> : <><Bot className="h-3 w-3" /> MediConnect AI</>}
+                    </div>
+                    <div className="prose prose-invert prose-sm">
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-slate-900 border border-yellow-500/20 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+                    <div className="flex gap-1">
+                      <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="h-1.5 w-1.5 bg-yellow-500 rounded-full"></motion.span>
+                      <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="h-1.5 w-1.5 bg-yellow-500 rounded-full"></motion.span>
+                      <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="h-1.5 w-1.5 bg-yellow-500 rounded-full"></motion.span>
+                    </div>
+                    <span className="text-[10px] text-yellow-500/80 font-bold uppercase tracking-widest">Analyzing Symptoms</span>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Input Footer */}
+            <div className="p-4 bg-slate-900 border-t border-yellow-500/10 flex gap-2 items-center">
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask about symptoms..."
-                className={`flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none ${isPremium ? 'bg-slate-800 text-white placeholder-slate-500' : 'bg-slate-100 text-slate-900'}`}
+                placeholder="Ask about symptoms or health tips..."
+                className="flex-1 bg-slate-800 border-0 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-yellow-500/30 outline-none transition-all"
               />
-              <button onClick={handleSend} className={`${isPremium ? 'text-yellow-500' : 'text-primary'}`}>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleSend}
+                className="bg-yellow-600 p-3 rounded-xl text-white shadow-lg shadow-yellow-600/20"
+              >
                 <Send className="h-5 w-5" />
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Floating Button */}
-      <button 
+      {/* Main Floating Trigger */}
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 ${
-          isPremium 
-          ? 'bg-gradient-to-r from-yellow-500 to-yellow-700 text-white ring-2 ring-yellow-400/50' 
-          : 'bg-primary text-white'
-        }`}
+        className="h-16 w-16 bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-2xl shadow-2xl flex items-center justify-center text-white relative group"
       >
-        <MessageSquare className="h-7 w-7" />
-      </button>
+        <div className="absolute inset-0 bg-yellow-400 rounded-2xl animate-ping opacity-20 group-hover:opacity-40"></div>
+        {isOpen ? <X className="h-8 w-8 relative z-10" /> : <MessageSquare className="h-8 w-8 relative z-10" />}
+      </motion.button>
     </div>
   );
 };
