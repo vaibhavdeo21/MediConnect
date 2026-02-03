@@ -13,8 +13,10 @@ require('dotenv').config();
 
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
+//app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // Debug Middleware (Keep this! It helps us see requests)
 app.use((req, res, next) => {
@@ -30,6 +32,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/documents', documentRoutes);
+app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

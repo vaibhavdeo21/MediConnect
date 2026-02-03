@@ -68,43 +68,6 @@ const bookAppointment = async (req, res) => {
   }
 };
 
-// --- 2. GET APPOINTMENTS (Unified) ---
-const getMyAppointments = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const role = req.user.role; 
-
-    // Base query: Get BOTH patient_name and doctor_name for everyone
-    let queryText = `
-      SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
-             a.doctor_id,
-             p.full_name AS patient_name,
-             d.full_name AS doctor_name,
-             d.address,
-             p.phone_number AS patient_phone
-      FROM appointments a
-      JOIN doctors d ON a.doctor_id = d.id
-      JOIN patients p ON a.patient_id = p.id
-    `;
-
-    // Filter based on who is logged in
-    if (role === 'doctor') {
-      queryText += ` WHERE d.user_id = $1`;
-    } else {
-      queryText += ` WHERE p.user_id = $1`;
-    }
-
-    queryText += ` ORDER BY a.appointment_date, a.appointment_time`;
-
-    const appointments = await pool.query(queryText, [userId]);
-    res.json(appointments.rows);
-
-  } catch (err) {
-    console.error("Fetch Error:", err.message);
-    res.status(500).send("Server Error");
-  }
-};
-
 // --- 3. UPDATE STATUS (With Email Notification) ---
 const updateAppointmentStatus = async (req, res) => {
   const { id } = req.params; 
@@ -151,4 +114,42 @@ const updateAppointmentStatus = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
+
+const getMyAppointments = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role; 
+
+    let queryText = `
+      SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
+             a.doctor_id,
+             p.full_name AS patient_name,
+             u_p.is_premium AS is_patient_premium, -- Fetch Premium Status
+             d.full_name AS doctor_name,
+             d.address,
+             p.phone_number AS patient_phone
+      FROM appointments a
+      JOIN doctors d ON a.doctor_id = d.id
+      JOIN patients p ON a.patient_id = p.id
+      JOIN users u_p ON p.user_id = u_p.id -- Join Users to get Premium status
+    `;
+
+    if (role === 'doctor') {
+      queryText += ` WHERE d.user_id = $1`;
+      // DOCTOR VIEW: Sort Premium Users First, then by Date
+      queryText += ` ORDER BY a.status = 'Pending' DESC, u_p.is_premium DESC, a.appointment_date, a.appointment_time`;
+    } else {
+      queryText += ` WHERE p.user_id = $1`;
+      queryText += ` ORDER BY a.appointment_date, a.appointment_time`;
+    }
+
+    const appointments = await pool.query(queryText, [userId]);
+    res.json(appointments.rows);
+
+  } catch (err) {
+    console.error("Fetch Error:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
 module.exports = { bookAppointment, getMyAppointments, updateAppointmentStatus };
