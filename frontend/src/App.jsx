@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
@@ -19,6 +19,29 @@ import MyAppointments from './pages/MyAppointments';
 import Subscribe from './pages/Subscribe';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PremiumPerks from './pages/PremiumPerks';
+import ForgotPassword from './pages/ForgotPassword';
+import Departments from './pages/Departments';
+import Dashboard from './pages/Dashboard'; // <-- MAKE SURE THIS IS IMPORTED
+
+// --- PROTECTED ROUTE COMPONENT ---
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useContext(AuthContext);
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-emerald-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
 
 const AppContent = () => {
   const location = useLocation();
@@ -31,15 +54,51 @@ const AppContent = () => {
       
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/doctors" element={<Doctors />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/my-appointments" element={<MyAppointments />} />
-          <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          {/* Protected Routes (Logged-in Only) */}
+          
+          {/* ADD THE DASHBOARD ROUTE HERE */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/departments" element={
+            <ProtectedRoute>
+              <Departments />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/my-appointments" element={
+            <ProtectedRoute>
+              <MyAppointments />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/subscribe" element={
+            <ProtectedRoute>
+              <Subscribe />
+            </ProtectedRoute>
+          } />
+
+          {/* Misc Routes */}
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/premium-perks" element={<PremiumPerks />} />
+
+          {/* Catch-all: Redirect unknown URLs to Home */}
           <Route path="*" element={<Home />} />
         </Routes>
       </AnimatePresence>
@@ -56,8 +115,14 @@ function App() {
         position="top-right"
         autoClose={3000}
         theme="colored"
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
       />
-      {/* No <Router> here anymore! */}
       <AppContent />
     </>
   );

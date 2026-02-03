@@ -1,7 +1,7 @@
 import { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Menu, X, User, Calendar, LogOut, ChevronDown, Crown, Sparkles } from 'lucide-react';
+import { Menu, X, User, Calendar, LogOut, ChevronDown, Crown, Sparkles, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
@@ -60,6 +60,11 @@ const Navbar = () => {
             
             {user ? (
               <div className="flex items-center gap-6">
+                {/* Departments Link - Logged In Only */}
+                <Link to="/departments" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors flex items-center gap-2`}>
+                  <LayoutGrid className="h-4 w-4" /> Departments
+                </Link>
+
                 {/* Premium Perks Link (Only for Premium Users) */}
                 {isPremium && (
                     <Link to="/premium-perks" className="flex items-center gap-2 text-yellow-500 font-bold text-xs uppercase tracking-tighter bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 animate-pulse">
@@ -144,6 +149,11 @@ const Navbar = () => {
             
             {user ? (
                 <div className={`pt-6 border-t ${isPremium ? 'border-yellow-500/10' : 'border-slate-100'}`}>
+                    {/* Departments Link - Mobile Logged In Only */}
+                    <Link to="/departments" className={`block font-bold text-sm uppercase tracking-widest mb-6 ${linkClass}`} onClick={() => setIsOpen(false)}>
+                      Departments
+                    </Link>
+
                     <div className="flex items-center gap-4 mb-6">
                         <div className={`p-3 rounded-full ${isPremium ? 'bg-yellow-500/20' : 'bg-primary/10'}`}>
                             <User className={`h-6 w-6 ${isPremium ? 'text-yellow-500' : 'text-primary'}`} />
@@ -173,7 +183,7 @@ const Navbar = () => {
   );
 };
 
-// Sub-component for Dropdown Items to keep luxury look
+// Sub-component for Dropdown Items
 const DropdownItem = ({ to, icon, label, onClick, isPremium }) => (
     <Link 
       to={to} 

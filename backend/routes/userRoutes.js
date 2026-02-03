@@ -1,32 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const authorize = require('../middleware/authMiddleware');
-const { getUserProfile, updateUserProfile, getDashboardStats } = require('../controllers/userController');
+const { 
+    getUserProfile, 
+    updateUserProfile,
+    getDashboardStats, 
+    getReferralData,
+    registerUser, 
+    getWalletBalance 
+} = require('../controllers/userController');
 
-// Route 1: Get Profile (Protected)
+// --- PUBLIC ---
+// Used in Register.jsx
+router.post('/register', registerUser);
+
+// --- PROTECTED (Requires authorize) ---
+
+// Used in Profile.jsx
 router.get('/profile', authorize, getUserProfile);
+router.put('/profile', authorize, updateUserProfile);
 
+// Used in Dashboard.jsx
 router.get('/dashboard-stats', authorize, getDashboardStats);
 
+// Used in PremiumPerks.jsx
+router.get('/referral-data', authorize, getReferralData);
 
-router.get('/referral-data', authorize, async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT referral_code, referral_count FROM users WHERE id = $1",
-      [req.user.id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
-});
-
-router.put('/profile', authorize, updateUserProfile);
+// Used in EliteWallet.jsx
+router.get('/wallet', authorize, getWalletBalance);
 
 module.exports = router;
