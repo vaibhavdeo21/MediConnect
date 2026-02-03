@@ -21,7 +21,8 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PremiumPerks from './pages/PremiumPerks';
 import ForgotPassword from './pages/ForgotPassword';
 import Departments from './pages/Departments';
-import Dashboard from './pages/Dashboard'; // <-- MAKE SURE THIS IS IMPORTED
+import Dashboard from './pages/Dashboard';
+import ActivityLog from './pages/ActivityLog';
 
 // --- PROTECTED ROUTE COMPONENT ---
 const ProtectedRoute = ({ children }) => {
@@ -45,13 +46,20 @@ const ProtectedRoute = ({ children }) => {
 
 const AppContent = () => {
   const location = useLocation();
-  const { theme } = useContext(AuthContext);
+  const { user, theme } = useContext(AuthContext);
   const isPremium = theme === 'premium';
+  const isDoctor = user?.role === 'doctor';
+
+  // Restoration of the background logic: Doctor OR Premium gets dark mode
+  const getGlobalBg = () => {
+    if (isDoctor || isPremium) return "bg-slate-950";
+    return "bg-white";
+  };
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-white'}`}>
+    <div className={`min-h-screen transition-colors duration-500 ${getGlobalBg()}`}>
       <Navbar />
-      
+
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* Public Routes */}
@@ -62,14 +70,18 @@ const AppContent = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected Routes (Logged-in Only) */}
-          
-          {/* ADD THE DASHBOARD ROUTE HERE */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           } />
-
+          
+          <Route path="/activity" element={
+            <ProtectedRoute>
+              <ActivityLog />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/departments" element={
             <ProtectedRoute>
               <Departments />
@@ -94,7 +106,7 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
-          {/* Misc Routes */}
+          {/* Misc Routes - Restored Payment and Perks */}
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/premium-perks" element={<PremiumPerks />} />
 
@@ -111,7 +123,7 @@ const AppContent = () => {
 function App() {
   return (
     <>
-      <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={3000}
         theme="colored"

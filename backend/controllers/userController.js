@@ -173,4 +173,27 @@ const getWalletBalance = async (req, res) => {
   }
 };
 
-module.exports = { getUserProfile, updateUserProfile, getDashboardStats, getReferralData, registerUser, getWalletBalance };
+// --- 7. GET RECENT ACTIVITY LOGS ---
+const getActivityLogs = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      "SELECT id, type, title, description, created_at FROM activity_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5",
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Activity Logs Error:", err.message);
+    res.status(500).json({ error: "Failed to fetch activity logs" });
+  }
+};
+
+module.exports = { 
+  getUserProfile, 
+  updateUserProfile, 
+  getDashboardStats, 
+  getReferralData, 
+  registerUser, 
+  getWalletBalance,
+  getActivityLogs 
+};

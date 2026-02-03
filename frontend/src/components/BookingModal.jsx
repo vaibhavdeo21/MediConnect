@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { X, Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { X, Calendar, Clock, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const BookingModal = ({ isOpen, onClose, doctor }) => {
+  const { theme } = useContext(AuthContext);
+  const isPremium = theme === 'premium';
+  
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,7 +17,6 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
   const backendUrl = import.meta.env.VITE_API_URL;
   const daysMap = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
 
-  // --- HELPER: GENERATE 15-MINUTE SLOTS ---
   const generateTimeSlots = (availabilityString) => {
     const defaultStart = "09:00 AM";
     const defaultEnd = "05:00 PM";
@@ -50,11 +54,8 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
     return slots;
   };
 
-  // --- NEW: CHECK IF SELECTED DATE MATCHES DOCTOR'S DAYS ---
   const checkDayAvailability = (selectedDate) => {
     if (!doctor.availability || !selectedDate) return true;
-
-    // Parse "Mon - Wed, ..."
     const dayPart = doctor.availability.split(',')[0].trim();
     const dayRange = dayPart.split('-').map(d => d.trim());
 
@@ -63,12 +64,9 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
       const endDayNum = daysMap[dayRange[1]];
       const selectedDayNum = new Date(selectedDate).getDay();
 
-      // Handle ranges that wrap around Sunday if necessary, 
-      // but for Mon-Wed (1 to 3), it checks if selectedDay is between 1 and 3
       if (startDayNum <= endDayNum) {
         return selectedDayNum >= startDayNum && selectedDayNum <= endDayNum;
       } else {
-        // Range wraps around week (e.g., Sat - Tue)
         return selectedDayNum >= startDayNum || selectedDayNum <= endDayNum;
       }
     }
@@ -79,14 +77,13 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
     if (doctor) {
       const slots = generateTimeSlots(doctor.availability);
       setTimeSlots(slots);
-      setTime(slots[0]);
+      setTime(slots[0] || '');
     }
   }, [doctor]);
 
   const handleDateChange = (e) => {
     const selectedDate = e.target.value;
     setDate(selectedDate);
-    
     if (!checkDayAvailability(selectedDate)) {
       toast.error(`Doctor is only available ${doctor.availability.split(',')[0]}`, {
         icon: <AlertCircle className="text-red-500" />
@@ -105,10 +102,10 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
       const token = localStorage.getItem("token");
       await axios.post(
         `${backendUrl}/api/appointments/book`, 
-        { doctorId: doctor.id, appointmentDate: date, appointmentTime: time },
+        { doctorId: doctor.id, appointmentDate: date, appointmentTime: time, doctorName: doctor.full_name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success("Appointment Booked Successfully!");
+      toast.success("Elite Session Booked!");
       onClose();
     } catch (err) {
       toast.error("Booking Failed.");
@@ -117,65 +114,69 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="bg-primary px-6 py-4 flex justify-between items-center text-white">
-          <div>
-            <h3 className="text-lg font-bold">Book Appointment</h3>
-            <p className="text-sm opacity-90">Dr. {doctor.full_name}</p>
-          </div>
-          <button onClick={onClose} className="hover:bg-white/20 p-1 rounded transition"><X className="h-6 w-6" /></button>
-        </div>
-
-        <form onSubmit={handleBooking} className="p-6 space-y-5">
-          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-xs font-medium border border-blue-100 flex items-center gap-2">
-            <Clock className="h-3 w-3" />
-            Working Hours: {doctor.availability}
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Select Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input 
-                type="date" 
-                min={new Date().toISOString().split('T')[0]}
-                value={date}
-                onChange={handleDateChange}
-                className={`w-full pl-10 pr-3 py-2 border rounded-lg outline-none ${!checkDayAvailability(date) ? 'border-red-500 bg-red-50' : 'border-slate-300'}`}
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Select Time Slot</label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <select 
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white appearance-none"
-                required
-              >
-                {timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={loading || !checkDayAvailability(date)}
-            className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-primary transition disabled:opacity-50 flex justify-center items-center gap-2"
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" 
+          />
+          
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+            className={`relative w-full max-w-md rounded-[2.5rem] overflow-hidden border transition-all ${isPremium ? 'bg-slate-900 border-yellow-500/20 text-white' : 'bg-white border-slate-100 text-slate-900 shadow-2xl'}`}
           >
-            {loading ? "Processing..." : <><CheckCircle className="h-5 w-5" /> Confirm Booking</>}
-          </button>
-        </form>
-      </div>
-    </div>
+            {/* Modal Header */}
+            <div className={`px-8 py-6 flex justify-between items-center ${isPremium ? 'bg-slate-800/50 border-b border-white/5' : 'bg-slate-900 text-white'}`}>
+              <div className="text-left">
+                {isPremium && (
+                    <div className="inline-flex items-center gap-1 text-yellow-500 text-[9px] font-black uppercase tracking-tighter mb-1">
+                        <Sparkles className="h-2 w-2" /> Elite Booking
+                    </div>
+                )}
+                <h3 className="text-xl font-serif font-bold italic">Book Session</h3>
+                <p className="text-xs opacity-70">Dr. {doctor.full_name}</p>
+              </div>
+              <button onClick={onClose} className="hover:bg-white/10 p-2 rounded-full transition"><X className="h-5 w-5" /></button>
+            </div>
+
+            <form onSubmit={handleBooking} className="p-8 space-y-6">
+              <div className={`p-4 rounded-2xl flex items-center gap-3 border ${isPremium ? 'bg-slate-950 border-yellow-500/10 text-yellow-500' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
+                <Clock className="h-4 w-4" />
+                <span className="text-[11px] font-bold uppercase tracking-tight">Hours: {doctor.availability}</span>
+              </div>
+
+              <div className="text-left">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Select Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <input type="date" min={new Date().toISOString().split('T')[0]} value={date} onChange={handleDateChange} required
+                    className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border transition-all ${isPremium ? 'bg-slate-800 border-white/5' : 'bg-slate-50 border-slate-200'}`} />
+                </div>
+              </div>
+
+              <div className="text-left">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Available Slots</label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <select value={time} onChange={(e) => setTime(e.target.value)} required
+                    className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border transition-all appearance-none ${isPremium ? 'bg-slate-800 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                    {timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading || !checkDayAvailability(date)}
+                className={`w-full py-5 rounded-2xl font-bold transition-all flex justify-center items-center gap-2 shadow-xl ${isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400' : 'bg-slate-950 text-white hover:bg-emerald-600'} disabled:opacity-50`}
+              >
+                {loading ? "Processing..." : <><CheckCircle className="h-5 w-5" /> Confirm Elite Booking</>}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

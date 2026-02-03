@@ -16,8 +16,7 @@ console.log("DEBUG: Loading Auth Routes..."); // <--- This proves the file loade
 // --- REGISTER & LOGIN ---
 router.post('/register', registerUser);
 router.post('/login', loginUser);
-router.post('/google', googleLogin);
-
+router.post('/google-login', googleLogin);
 // --- PASSWORD RESET ROUTES ---
 // Make sure this matches the URL exactly: /api/auth/forgot-password
 router.post('/forgot-password', forgotPassword); 

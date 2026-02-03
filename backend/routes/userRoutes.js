@@ -7,11 +7,11 @@ const {
     getDashboardStats, 
     getReferralData,
     registerUser, 
-    getWalletBalance 
+    getWalletBalance,
+    getActivityLogs 
 } = require('../controllers/userController');
 
 // --- PUBLIC ---
-// Used in Register.jsx
 router.post('/register', registerUser);
 
 // --- PROTECTED (Requires authorize) ---
@@ -22,6 +22,7 @@ router.put('/profile', authorize, updateUserProfile);
 
 // Used in Dashboard.jsx
 router.get('/dashboard-stats', authorize, getDashboardStats);
+router.get('/activity-logs', authorize, getActivityLogs); // New Endpoint
 
 // Used in PremiumPerks.jsx
 router.get('/referral-data', authorize, getReferralData);

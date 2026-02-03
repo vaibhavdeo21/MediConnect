@@ -18,6 +18,11 @@ app.use(cors());
 app.use(express.json());
 //app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
 // Debug Middleware (Keep this! It helps us see requests)
 app.use((req, res, next) => {
   console.log(`Received Request: ${req.method} ${req.url}`);

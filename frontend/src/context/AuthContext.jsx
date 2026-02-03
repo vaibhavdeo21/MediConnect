@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
 
   const backendUrl = import.meta.env.VITE_API_URL;
 
-  // Helper to normalize user data (maps snake_case from DB to camelCase for Frontend)
   const normalizeUserData = (data) => {
     return {
       ...data,
@@ -18,56 +17,61 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  // Function to pull freshest data from the server
+  // --- 1. REFRESH USER (Server Sync) ---
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      // Ensure your backend server.js has app.use('/api/users', userRoutes)
       const res = await axios.get(`${backendUrl}/api/users/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       const normalizedData = normalizeUserData(res.data);
       
-      // Update states and storage
       localStorage.setItem("user", JSON.stringify(normalizedData));
       setUser({ token, ...normalizedData });
       
-      if (normalizedData.is_premium) {
+      if (normalizedData.is_premium || normalizedData.role === 'doctor') {
         setTheme('premium');
       } else {
         setTheme('normal');
       }
     } catch (err) {
-      console.error("Failed to sync user data with server", err);
+      console.error("Failed to sync user data", err);
+      // If token is invalid (401), clear it
+      if (err.response && err.response.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      }
+    } finally {
+      setLoading(false);
     }
   }, [backendUrl]);
 
+  // --- 2. INITIALIZATION (The Fix) ---
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("token");
-      const savedUser = localStorage.getItem("user");
-
-      if (token && savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser);
-          setUser({ token, ...parsedUser });
-          if (parsedUser.is_premium) setTheme('premium');
-          
-          // Verify status with server in the background
-          await refreshUser();
-        } catch (e) {
-          console.error("Error parsing saved user");
-          logout();
-        }
+      
+      // FIX: If we have a token, we MUST try to fetch the user, 
+      // even if 'savedUser' is missing from localStorage.
+      if (token) {
+        await refreshUser();
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initAuth();
   }, [refreshUser]);
 
+  // --- 3. LOGIN FUNCTION ---
   const login = async (email, password) => {
     const res = await axios.post(`${backendUrl}/api/auth/login`, { email, password });
     const normalizedUser = normalizeUserData(res.data.user);
@@ -81,17 +85,7 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const register = async (userData) => {
-    const res = await axios.post(`${backendUrl}/api/auth/register`, userData);
-    const normalizedUser = normalizeUserData(res.data.user);
-
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(normalizedUser));
-    
-    setUser({ token: res.data.token, ...normalizedUser });
-    if (normalizedUser.is_premium) setTheme('premium');
-  };
-
+  // --- 4. LOGOUT FUNCTION ---
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -112,15 +106,14 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, 
       theme, 
-      setTheme,
+      setTheme, 
       login, 
-      register, 
       logout, 
       updateUser, 
-      refreshUser,
+      refreshUser, 
       loading 
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

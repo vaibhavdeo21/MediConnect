@@ -1,13 +1,13 @@
 const sendEmail = require('../utils/emailService');
 const pool = require('../db');
 
-// --- 1. BOOK APPOINTMENT (With Email Notification) ---
+// --- 1. BOOK APPOINTMENT (With Email & Activity Logging) ---
 const bookAppointment = async (req, res) => {
   const { doctorId, appointmentDate, appointmentTime } = req.body;
   const userId = req.user.id; 
 
   try {
-    // A. Check/Create Patient (Same as before)
+    // A. Check/Create Patient
     let patientQuery = await pool.query("SELECT id, full_name FROM patients WHERE user_id = $1", [userId]);
     let patientId;
     let patientName;
@@ -26,15 +26,14 @@ const bookAppointment = async (req, res) => {
       patientId = newPatient.rows[0].id;
     }
 
-    // B. Insert Appointment (Same as before)
+    // B. Insert Appointment
     const newAppointment = await pool.query(
       `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status) 
        VALUES ($1, $2, $3, $4, 'Pending') RETURNING *`,
       [patientId, doctorId, appointmentDate, appointmentTime]
     );
 
-    // --- C. NEW: SEND EMAIL TO DOCTOR ---
-    // 1. Get Doctor's Email
+    // C. Get Doctor Details for Email & Logging
     const doctorUser = await pool.query(
       "SELECT u.email, d.full_name FROM doctors d JOIN users u ON d.user_id = u.id WHERE d.id = $1",
       [doctorId]
@@ -44,6 +43,18 @@ const bookAppointment = async (req, res) => {
       const doctorEmail = doctorUser.rows[0].email;
       const doctorName = doctorUser.rows[0].full_name;
 
+      // --- LOG ACTIVITY FOR PATIENT ---
+      await pool.query(
+        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+        [
+          userId, 
+          'appointment_confirmed', // Matches dashboard icon logic
+          'Appointment Requested', 
+          `You requested a session with Dr. ${doctorName} for ${appointmentDate}`
+        ]
+      );
+
+      // Email Logic
       const emailSubject = `New Appointment Request from ${patientName}`;
       const emailBody = `
         <h3>Hello Dr. ${doctorName},</h3>
@@ -55,8 +66,6 @@ const bookAppointment = async (req, res) => {
         </ul>
         <p>Please login to your dashboard to Accept or Decline.</p>
       `;
-
-      // Send the email (Background process, don't await strictly)
       sendEmail(doctorEmail, emailSubject, emailBody);
     }
 
@@ -68,7 +77,7 @@ const bookAppointment = async (req, res) => {
   }
 };
 
-// --- 3. UPDATE STATUS (With Email Notification) ---
+// --- 2. UPDATE STATUS (With Email & Activity Logging) ---
 const updateAppointmentStatus = async (req, res) => {
   const { id } = req.params; 
   const { status } = req.body; 
@@ -84,7 +93,7 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     const apptDetails = await pool.query(`
-      SELECT u.email, p.full_name, d.full_name as doctor_name, a.appointment_date, a.appointment_time
+      SELECT u.id as user_id, u.email, p.full_name, d.full_name as doctor_name, a.appointment_date, a.appointment_time
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
       JOIN users u ON p.user_id = u.id
@@ -93,8 +102,20 @@ const updateAppointmentStatus = async (req, res) => {
     `, [id]);
 
     if (apptDetails.rows.length > 0) {
-      const { email, full_name, doctor_name, appointment_date, appointment_time } = apptDetails.rows[0];
+      const { user_id, email, full_name, doctor_name, appointment_date, appointment_time } = apptDetails.rows[0];
       
+      // --- LOG ACTIVITY FOR PATIENT ---
+      await pool.query(
+        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+        [
+          user_id,
+          status === 'Confirmed' ? 'appointment_confirmed' : 'alert',
+          `Appointment ${status}`,
+          `Your visit with Dr. ${doctor_name} has been ${status.toLowerCase()}.`
+        ]
+      );
+
+      // Email Logic
       const emailSubject = `Appointment ${status}: Dr. ${doctor_name}`;
       const color = status === 'Confirmed' ? 'green' : 'red';
       
@@ -124,19 +145,18 @@ const getMyAppointments = async (req, res) => {
       SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
              a.doctor_id,
              p.full_name AS patient_name,
-             u_p.is_premium AS is_patient_premium, -- Fetch Premium Status
+             u_p.is_premium AS is_patient_premium,
              d.full_name AS doctor_name,
              d.address,
              p.phone_number AS patient_phone
       FROM appointments a
       JOIN doctors d ON a.doctor_id = d.id
       JOIN patients p ON a.patient_id = p.id
-      JOIN users u_p ON p.user_id = u_p.id -- Join Users to get Premium status
+      JOIN users u_p ON p.user_id = u_p.id
     `;
 
     if (role === 'doctor') {
       queryText += ` WHERE d.user_id = $1`;
-      // DOCTOR VIEW: Sort Premium Users First, then by Date
       queryText += ` ORDER BY a.status = 'Pending' DESC, u_p.is_premium DESC, a.appointment_date, a.appointment_time`;
     } else {
       queryText += ` WHERE p.user_id = $1`;
