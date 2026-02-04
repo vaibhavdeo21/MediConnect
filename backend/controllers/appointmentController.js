@@ -1,9 +1,42 @@
 const sendEmail = require('../utils/emailService');
 const pool = require('../db');
 
-// --- 1. BOOK APPOINTMENT (With Email & Activity Logging) ---
+// --- 1. GET ACTIVE EMERGENCY CALL ---
+const getActiveCall = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    let query;
+    if (role === 'doctor') {
+      query = `
+        SELECT a.id, a.meeting_link, p.full_name as patient_name 
+        FROM appointments a 
+        JOIN patients p ON a.patient_id = p.id
+        JOIN doctors d ON a.doctor_id = d.id
+        WHERE d.user_id = $1 AND a.is_emergency = true AND a.status = 'Confirmed'
+        ORDER BY a.id DESC LIMIT 1`;
+    } else {
+      query = `
+        SELECT a.id, a.meeting_link, d.full_name as doctor_name 
+        FROM appointments a 
+        JOIN doctors d ON a.doctor_id = d.id
+        JOIN patients p ON a.patient_id = p.id
+        WHERE p.user_id = $1 AND a.is_emergency = true AND a.status = 'Confirmed'
+        ORDER BY a.id DESC LIMIT 1`;
+    }
+
+    const result = await pool.query(query, [userId]);
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    console.error("Active Call Error:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+// --- 2. BOOK APPOINTMENT ---
 const bookAppointment = async (req, res) => {
-  const { doctorId, appointmentDate, appointmentTime } = req.body;
+  let { doctorId, appointmentDate, appointmentTime, isEmergency } = req.body;
   const userId = req.user.id; 
 
   try {
@@ -26,11 +59,28 @@ const bookAppointment = async (req, res) => {
       patientId = newPatient.rows[0].id;
     }
 
+    // FIX: Handle "IMMEDIATE" time string for SQL
+    if (isEmergency && appointmentTime === 'IMMEDIATE') {
+        const now = new Date();
+        appointmentTime = now.toTimeString().split(' ')[0]; // e.g., "14:30:00"
+    }
+
+    // SLOT LOGIC: Bypass slot validation only if it's NOT an emergency
+    if (!isEmergency) {
+      const existingSlot = await pool.query(
+        "SELECT * FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND appointment_time = $3 AND status != 'Cancelled'",
+        [doctorId, appointmentDate, appointmentTime]
+      );
+      if (existingSlot.rows.length > 0) {
+        return res.status(400).json({ message: "This slot is no longer available" });
+      }
+    }
+
     // B. Insert Appointment
     const newAppointment = await pool.query(
-      `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status) 
-       VALUES ($1, $2, $3, $4, 'Pending') RETURNING *`,
-      [patientId, doctorId, appointmentDate, appointmentTime]
+      `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status, is_emergency) 
+       VALUES ($1, $2, $3, $4, 'Pending', $5) RETURNING *`,
+      [patientId, doctorId, appointmentDate, appointmentTime, isEmergency || false]
     );
 
     // C. Get Doctor Details for Email & Logging
@@ -48,23 +98,23 @@ const bookAppointment = async (req, res) => {
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
           userId, 
-          'appointment_confirmed', // Matches dashboard icon logic
-          'Appointment Requested', 
-          `You requested a session with Dr. ${doctorName} for ${appointmentDate}`
+          'appointment_confirmed',
+          isEmergency ? 'Emergency SOS Sent' : 'Appointment Requested', 
+          isEmergency ? `Priority alert sent to Dr. ${doctorName}` : `You requested a session with Dr. ${doctorName} for ${appointmentDate}`
         ]
       );
 
       // Email Logic
-      const emailSubject = `New Appointment Request from ${patientName}`;
+      const emailSubject = isEmergency ? `EMERGENCY SOS: ${patientName}` : `New Appointment Request from ${patientName}`;
       const emailBody = `
         <h3>Hello Dr. ${doctorName},</h3>
-        <p>You have a new appointment request.</p>
+        <p>${isEmergency ? '<strong style="color:red">This is an EMERGENCY priority request.</strong>' : 'You have a new appointment request.'}</p>
         <ul>
           <li><strong>Patient:</strong> ${patientName}</li>
           <li><strong>Date:</strong> ${appointmentDate}</li>
           <li><strong>Time:</strong> ${appointmentTime}</li>
         </ul>
-        <p>Please login to your dashboard to Accept or Decline.</p>
+        <p>Please login to your dashboard to Accept or Decline immediately.</p>
       `;
       sendEmail(doctorEmail, emailSubject, emailBody);
     }
@@ -77,15 +127,20 @@ const bookAppointment = async (req, res) => {
   }
 };
 
-// --- 2. UPDATE STATUS (With Email & Activity Logging) ---
+// --- 3. UPDATE STATUS & RESCHEDULE ---
 const updateAppointmentStatus = async (req, res) => {
   const { id } = req.params; 
-  const { status } = req.body; 
+  const { status, meeting_link, appointment_date, appointment_time, reason } = req.body; 
 
   try {
     const updatedAppt = await pool.query(
-      "UPDATE appointments SET status = $1 WHERE id = $2 RETURNING *",
-      [status, id]
+      `UPDATE appointments 
+       SET status = $1, 
+           meeting_link = COALESCE($2, meeting_link),
+           appointment_date = COALESCE($3, appointment_date),
+           appointment_time = COALESCE($4, appointment_time)
+       WHERE id = $5 RETURNING *`,
+      [status, meeting_link || null, appointment_date || null, appointment_time || null, id]
     );
 
     if (updatedAppt.rows.length === 0) {
@@ -93,7 +148,7 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     const apptDetails = await pool.query(`
-      SELECT u.id as user_id, u.email, p.full_name, d.full_name as doctor_name, a.appointment_date, a.appointment_time
+      SELECT u.id as user_id, u.email, p.full_name, d.full_name as doctor_name, a.appointment_date, a.appointment_time, a.is_emergency
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
       JOIN users u ON p.user_id = u.id
@@ -102,28 +157,29 @@ const updateAppointmentStatus = async (req, res) => {
     `, [id]);
 
     if (apptDetails.rows.length > 0) {
-      const { user_id, email, full_name, doctor_name, appointment_date, appointment_time } = apptDetails.rows[0];
-      
+      const { user_id, email, full_name, doctor_name, appointment_date: finalDate, appointment_time: finalTime, is_emergency } = apptDetails.rows[0];
+      const isRescheduled = appointment_date || appointment_time;
+
       // --- LOG ACTIVITY FOR PATIENT ---
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
           user_id,
-          status === 'Confirmed' ? 'appointment_confirmed' : 'alert',
-          `Appointment ${status}`,
-          `Your visit with Dr. ${doctor_name} has been ${status.toLowerCase()}.`
+          isRescheduled ? 'profile_update' : (status === 'Confirmed' ? 'appointment_confirmed' : 'alert'),
+          isRescheduled ? 'Appointment Rescheduled' : `Appointment ${status}`,
+          `Dr. ${doctor_name} has ${isRescheduled ? 'rescheduled your visit to ' + finalDate : status.toLowerCase() + ' your appointment'}. ${reason ? 'Reason: ' + reason : ''}`
         ]
       );
 
       // Email Logic
-      const emailSubject = `Appointment ${status}: Dr. ${doctor_name}`;
+      const emailSubject = isRescheduled ? `Rescheduled: Dr. ${doctor_name}` : `Appointment ${status}: Dr. ${doctor_name}`;
       const color = status === 'Confirmed' ? 'green' : 'red';
       
       const emailBody = `
         <h3>Hello ${full_name},</h3>
-        <p>Your appointment with <strong>Dr. ${doctor_name}</strong> has been <strong style="color:${color}">${status}</strong>.</p>
-        <p><strong>When:</strong> ${new Date(appointment_date).toDateString()} at ${appointment_time}</p>
-        ${status === 'Confirmed' ? '<p>Please login at the scheduled time to join the video call.</p>' : '<p>Please contact the clinic for more details.</p>'}
+        <p>Your appointment with <strong>Dr. ${doctor_name}</strong> has been ${isRescheduled ? 'rescheduled' : `<strong style="color:${color}">${status}</strong>`}.</p>
+        <p><strong>When:</strong> ${new Date(finalDate).toDateString()} at ${finalTime}</p>
+        ${status === 'Confirmed' ? `<p>Please login to your dashboard to ${is_emergency ? 'join the instant call' : 'join the scheduled session'}.</p>` : '<p>Please contact the clinic for more details.</p>'}
       `;
 
       sendEmail(email, emailSubject, emailBody);
@@ -136,13 +192,43 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+// --- 4. DELETE APPOINTMENT ---
+const deleteAppointment = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Fetch details before deletion for notification
+        const details = await pool.query(`
+            SELECT p.user_id, d.full_name as doctor_name, a.appointment_date 
+            FROM appointments a 
+            JOIN patients p ON a.patient_id = p.id 
+            JOIN doctors d ON a.doctor_id = d.id 
+            WHERE a.id = $1`, [id]);
+
+        if (details.rows.length > 0) {
+            const { user_id, doctor_name, appointment_date } = details.rows[0];
+            
+            // Notify Patient via Activity Log
+            await pool.query(
+                "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+                [user_id, 'alert', 'Appointment Cancelled', `Dr. ${doctor_name} has removed your appointment for ${appointment_date} from the schedule.`]
+            );
+        }
+
+        await pool.query("DELETE FROM appointments WHERE id = $1", [id]);
+        res.json({ message: "Appointment deleted successfully" });
+    } catch (err) {
+        res.status(500).send("Server Error");
+    }
+};
+
+// --- 5. GET APPOINTMENTS ---
 const getMyAppointments = async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role; 
 
     let queryText = `
-      SELECT a.id, a.appointment_date, a.appointment_time, a.status, 
+      SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.is_emergency, a.meeting_link,
              a.doctor_id,
              p.full_name AS patient_name,
              u_p.is_premium AS is_patient_premium,
@@ -157,7 +243,8 @@ const getMyAppointments = async (req, res) => {
 
     if (role === 'doctor') {
       queryText += ` WHERE d.user_id = $1`;
-      queryText += ` ORDER BY a.status = 'Pending' DESC, u_p.is_premium DESC, a.appointment_date, a.appointment_time`;
+      // Prioritize Emergency appointments, then Premium users
+      queryText += ` ORDER BY a.status = 'Pending' DESC, a.is_emergency DESC, u_p.is_premium DESC, a.appointment_date, a.appointment_time`;
     } else {
       queryText += ` WHERE p.user_id = $1`;
       queryText += ` ORDER BY a.appointment_date, a.appointment_time`;
@@ -172,4 +259,4 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
-module.exports = { bookAppointment, getMyAppointments, updateAppointmentStatus };
+module.exports = { getActiveCall, bookAppointment, getMyAppointments, updateAppointmentStatus, deleteAppointment };

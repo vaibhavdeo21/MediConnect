@@ -8,7 +8,8 @@ const {
     getReferralData,
     registerUser, 
     getWalletBalance,
-    getActivityLogs 
+    getActivityLogs,
+    updateEmergencyStatus // Added this
 } = require('../controllers/userController');
 
 // --- PUBLIC ---
@@ -22,7 +23,10 @@ router.put('/profile', authorize, updateUserProfile);
 
 // Used in Dashboard.jsx
 router.get('/dashboard-stats', authorize, getDashboardStats);
-router.get('/activity-logs', authorize, getActivityLogs); // New Endpoint
+router.get('/activity-logs', authorize, getActivityLogs); 
+
+// NEW: Endpoint for Emergency Active Switch
+router.put('/emergency-status', authorize, updateEmergencyStatus);
 
 // Used in PremiumPerks.jsx
 router.get('/referral-data', authorize, getReferralData);

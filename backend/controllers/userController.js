@@ -9,8 +9,9 @@ const getUserProfile = async (req, res) => {
 
     let user;
     if (role === 'doctor') {
+      // ADDED: d.is_emergency and d.is_emergency_active to the SELECT statement
       user = await pool.query(
-        "SELECT u.id, u.email, u.role, u.is_premium, d.full_name, d.specialization, d.consultation_fee, d.availability, d.phone_number FROM users u JOIN doctors d ON u.id = d.user_id WHERE u.id = $1",
+        "SELECT u.id, u.email, u.role, u.is_premium, d.full_name, d.specialization, d.consultation_fee, d.availability, d.phone_number, d.is_emergency, d.is_emergency_active FROM users u JOIN doctors d ON u.id = d.user_id WHERE u.id = $1",
         [userId]
       );
     } else {
@@ -36,7 +37,8 @@ const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
-    let { full_name, phone_number, specialization, consultation_fee, availability, address, dob } = req.body;
+    // ADDED: is_emergency to destructuring
+    let { full_name, phone_number, specialization, consultation_fee, availability, address, dob, is_emergency } = req.body;
 
     if (dob === "" || dob === " ") {
       dob = null;
@@ -44,9 +46,10 @@ const updateUserProfile = async (req, res) => {
 
     let updatedUser;
     if (role === 'doctor') {
+      // ADDED: is_emergency = $6 to the UPDATE statement
       updatedUser = await pool.query(
-        "UPDATE doctors SET full_name = $1, phone_number = $2, specialization = $3, consultation_fee = $4, availability = $5 WHERE user_id = $6 RETURNING *",
-        [full_name, phone_number, specialization, consultation_fee, availability, userId]
+        "UPDATE doctors SET full_name = $1, phone_number = $2, specialization = $3, consultation_fee = $4, availability = $5, is_emergency = $6 WHERE user_id = $7 RETURNING *",
+        [full_name, phone_number, specialization, consultation_fee, availability, is_emergency, userId]
       );
     } else {
       updatedUser = await pool.query(
@@ -188,6 +191,31 @@ const getActivityLogs = async (req, res) => {
   }
 };
 
+// --- 8. UPDATE EMERGENCY ACTIVE STATUS ---
+const updateEmergencyStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { active } = req.body; 
+
+    const updatedDoctor = await pool.query(
+      "UPDATE doctors SET is_emergency_active = $1 WHERE user_id = $2 RETURNING is_emergency_active",
+      [active, userId]
+    );
+
+    if (updatedDoctor.rows.length === 0) {
+      return res.status(404).json({ message: "Doctor record not found" });
+    }
+
+    res.json({ 
+      message: `Emergency status set to ${active ? 'Online' : 'Offline'}`, 
+      active: updatedDoctor.rows[0].is_emergency_active 
+    });
+  } catch (err) {
+    console.error("Emergency Status Update Error:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
 module.exports = { 
   getUserProfile, 
   updateUserProfile, 
@@ -195,5 +223,6 @@ module.exports = {
   getReferralData, 
   registerUser, 
   getWalletBalance,
-  getActivityLogs 
+  getActivityLogs,
+  updateEmergencyStatus // Added this
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { User, Mail, Phone, MapPin, Briefcase, IndianRupee, Clock, Calendar, Save, ChevronDown, X, Sparkles } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, IndianRupee, Clock, Calendar, Save, ChevronDown, X, Sparkles, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -9,6 +9,7 @@ const Profile = () => {
     const { user, theme, updateUser } = useContext(AuthContext);
     const [loading, setLoading] = useState(true);
     const [activeField, setActiveField] = useState(null);
+    const [showUndertaking, setShowUndertaking] = useState(false);
 
     const isDoctor = user?.role === 'doctor';
     const isPremium = user?.is_premium;
@@ -16,7 +17,8 @@ const Profile = () => {
 
     const [formData, setFormData] = useState({
         full_name: '', email: '', phone_number: '', specialization: '',
-        consultation_fee: '', availability: '', address: '', dob: ''
+        consultation_fee: '', availability: '', address: '', dob: '',
+        is_emergency: false
     });
 
     const [schedule, setSchedule] = useState({ startDay: 'Mon', endDay: 'Fri', startTime: '09:00', endTime: '17:00' });
@@ -47,7 +49,8 @@ const Profile = () => {
                     consultation_fee: res.data.consultation_fee || '',
                     availability: res.data.availability || '',
                     address: res.data.address || '',
-                    dob: res.data.dob ? res.data.dob.split('T')[0] : ''
+                    dob: res.data.dob ? res.data.dob.split('T')[0] : '',
+                    is_emergency: res.data.is_emergency || false
                 });
             } catch (err) { toast.error("Failed to load profile"); }
             finally { setLoading(false); }
@@ -56,6 +59,20 @@ const Profile = () => {
     }, [user, backendUrl]);
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleEmergencyToggle = () => {
+        if (!formData.is_emergency) {
+            setShowUndertaking(true);
+        } else {
+            setFormData(prev => ({ ...prev, is_emergency: false }));
+        }
+    };
+
+    const confirmUndertaking = () => {
+        setFormData(prev => ({ ...prev, is_emergency: true }));
+        setShowUndertaking(false);
+        toast.success("Emergency Status Enabled");
+    };
 
     const handleScheduleChange = (field, value) => {
         const newSchedule = { ...schedule, [field]: value };
@@ -80,7 +97,7 @@ const Profile = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.success("Profile Updated");
-            updateUser({ full_name: formData.full_name, phone_number: formData.phone_number });
+            updateUser({ full_name: formData.full_name, phone_number: formData.phone_number, is_emergency: formData.is_emergency });
         } catch (err) { toast.error("Update Failed"); }
     };
 
@@ -102,6 +119,36 @@ const Profile = () => {
 
     return (
         <div className={`min-h-screen py-24 px-4 transition-colors duration-500 ${bgClass} relative text-left`}>
+            {/* UNDERTAKING FORM MODAL */}
+            <AnimatePresence>
+                {showUndertaking && (
+                    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-xl" />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className={`relative z-[1101] w-full max-w-2xl p-10 rounded-[3rem] border shadow-2xl ${cardClass}`}>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-4 bg-red-500 rounded-3xl text-white shadow-xl shadow-red-500/20">
+                                    <FileText className="h-8 w-8" />
+                                </div>
+                                <h2 className="text-3xl font-serif font-bold">Emergency Service Undertaking</h2>
+                            </div>
+                            <div className={`space-y-4 text-sm leading-relaxed mb-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                <p>I, <strong>{formData.full_name}</strong>, hereby solemnly declare and undertake that:</p>
+                                <ul className="list-disc pl-5 space-y-3">
+                                    <li>I am providing my consent to be listed as an <strong>Emergency-Ready Practitioner</strong> on the MediConnect platform.</li>
+                                    <li>I understand that by being marked as "Active," I am expected to respond to emergency bookings immediately.</li>
+                                    <li>I will ensure that my real-time "Active/Inactive" status on the dashboard accurately reflects my physical availability.</li>
+                                    <li>I acknowledge that failure to respond to accepted emergency requests may lead to clinical audit and platform suspension.</li>
+                                </ul>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={() => setShowUndertaking(false)} className="flex-1 py-4 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-all">Cancel</button>
+                                <button onClick={confirmUndertaking} className="flex-1 py-4 rounded-2xl font-bold bg-red-600 text-white shadow-xl shadow-red-500/20 hover:bg-red-500 transition-all">I Agree & Enable</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* FOCUS MODE MODAL */}
             <AnimatePresence>
                 {activeField && (
@@ -143,14 +190,7 @@ const Profile = () => {
                                     } ${inputClass}`}
                                 />
                             </div>
-                            <button
-                                onClick={() => setActiveField(null)}
-                                className={`w-full py-5 text-white text-lg font-bold rounded-2xl shadow-xl transition-all ${
-                                    isDoctor ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20' : isPremium ? 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-500/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
-                                }`}
-                            >
-                                Done
-                            </button>
+                            <button onClick={() => setActiveField(null)} className={`w-full py-5 text-white text-lg font-bold rounded-2xl shadow-xl transition-all ${isDoctor ? 'bg-blue-600 hover:bg-blue-500' : isPremium ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}>Done</button>
                         </motion.div>
                     </div>
                 )}
@@ -158,38 +198,41 @@ const Profile = () => {
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`max-w-3xl mx-auto rounded-[2.5rem] overflow-hidden border ${cardClass}`}>
                 <div className={`px-8 py-10 flex items-center justify-between transition-colors duration-500 ${
-                    isDark 
-                        ? 'bg-slate-900 border-b border-white/5' 
-                        : isDoctor 
-                            ? 'bg-white border-b border-blue-50' 
-                            : isPremium 
-                                ? 'bg-yellow-50/50 border-b border-yellow-100' 
-                                : 'bg-emerald-50/50 border-b border-emerald-100'
+                    isDark ? 'bg-slate-900 border-b border-white/5' : isDoctor ? 'bg-white border-b border-blue-50' : isPremium ? 'bg-yellow-50/50 border-b border-yellow-100' : 'bg-emerald-50/50 border-b border-emerald-100'
                 }`}>
                     <div className="text-left">
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest mb-3 ${
-                            isDoctor 
-                                ? (isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm') 
-                                : isPremium 
-                                    ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20' 
-                                    : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                            isDoctor ? (isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm') : isPremium ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                         }`}>
                             {isDoctor ? 'Practitioner Account' : isPremium ? 'Elite Account' : 'Standard Account'}
                         </div>
-                        <h1 className={`text-3xl font-serif font-bold ${
-                            !isDark && isDoctor ? 'text-blue-900' : !isDark && isPremium ? 'text-yellow-700' : !isDark && !isPremium ? 'text-emerald-800' : 'text-white'
-                        }`}>
-                            {isDoctor ? 'Practice Settings' : 'My Profile'}
-                        </h1>
+                        <h1 className={`text-3xl font-serif font-bold ${!isDark && isDoctor ? 'text-blue-900' : !isDark && isPremium ? 'text-yellow-700' : !isDark && !isPremium ? 'text-emerald-800' : 'text-white'}`}>{isDoctor ? 'Practice Settings' : 'My Profile'}</h1>
                     </div>
-                    <div className={`p-4 rounded-2xl shadow-lg ${
-                        isDoctor ? 'bg-blue-600 text-white' : isPremium ? 'bg-yellow-500 text-slate-950' : 'bg-emerald-600 text-white'
-                    }`}>
+                    <div className={`p-4 rounded-2xl shadow-lg ${isDoctor ? 'bg-blue-600 text-white' : isPremium ? 'bg-yellow-500 text-slate-950' : 'bg-emerald-600 text-white'}`}>
                         <User className="h-8 w-8" />
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left">
+                    {isDoctor && (
+                        <div className={`p-6 rounded-3xl border transition-all flex items-center justify-between mb-8 ${
+                            formData.is_emergency ? 'bg-red-500/10 border-red-500/30 ring-4 ring-red-500/5 shadow-xl shadow-red-500/10' : isDark ? 'bg-slate-800/50 border-white/5' : 'bg-slate-50 border-slate-100'
+                        }`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-2xl transition-all ${formData.is_emergency ? 'bg-red-500 text-white shadow-lg shadow-red-500/40' : 'bg-slate-200 text-slate-500'}`}>
+                                    <AlertCircle className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h3 className={`font-bold transition-colors ${formData.is_emergency ? 'text-red-600' : isDark ? 'text-white' : 'text-slate-900'}`}>Emergency Response</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Appear in the Priority Emergency Specialists list.</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={handleEmergencyToggle} className={`relative w-14 h-8 rounded-full transition-all duration-300 ${formData.is_emergency ? 'bg-red-500 shadow-inner' : 'bg-slate-300'}`}>
+                                <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 shadow-md ${formData.is_emergency ? 'translate-x-6' : ''}`} />
+                            </button>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {renderInput("Full Name", "full_name", <User className="h-5 w-5" />)}
                         {renderInput("Email (Read Only)", "email", <Mail className="h-5 w-5" />, "email", true)}
@@ -238,13 +281,7 @@ const Profile = () => {
                         </div>
                     )}
 
-                    <button type="submit" className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all shadow-xl ${
-                        isDoctor 
-                            ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/20' 
-                            : isPremium 
-                                ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400 shadow-yellow-500/20' 
-                                : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-500/20'
-                        }`}>
+                    <button type="submit" className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all shadow-xl ${isDoctor ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/20' : isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400 shadow-yellow-500/20' : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-500/20'}`}>
                         <Save className="h-5 w-5" /> Save Changes
                     </button>
                 </form>
