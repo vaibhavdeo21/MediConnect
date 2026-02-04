@@ -7,6 +7,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const backendUrl = import.meta.env.VITE_API_URL;
+  
+  // Theme strictly handles visual preference (dark/light)
   const [theme, setTheme] = useState(localStorage.getItem('theme_mode') || 'dark');
 
   const toggleTheme = () => {
@@ -31,7 +33,6 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // Ensure your backend server.js has app.use('/api/users', userRoutes)
       const res = await axios.get(`${backendUrl}/api/users/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -40,15 +41,11 @@ export const AuthProvider = ({ children }) => {
 
       localStorage.setItem("user", JSON.stringify(normalizedData));
       setUser({ token, ...normalizedData });
-
-      if (normalizedData.is_premium || normalizedData.role === 'doctor') {
-        setTheme('premium');
-      } else {
-        setTheme('normal');
-      }
+      
+      // Removed the logic that overwrote 'theme' with 'premium'
+      // The Premium status is now rightfully read from 'normalizedData.is_premium'
     } catch (err) {
       console.error("Failed to sync user data", err);
-      // If token is invalid (401), clear it
       if (err.response && err.response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -59,20 +56,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, [backendUrl]);
 
-  // --- 2. INITIALIZATION (The Fix) ---
+  // --- 2. INITIALIZATION ---
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("token");
-
-      // FIX: If we have a token, we MUST try to fetch the user, 
-      // even if 'savedUser' is missing from localStorage.
       if (token) {
         await refreshUser();
       } else {
         setLoading(false);
       }
     };
-
     initAuth();
   }, [refreshUser]);
 
@@ -85,8 +78,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(normalizedUser));
 
     setUser({ token: res.data.token, ...normalizedUser });
-    if (normalizedUser.is_premium) setTheme('premium');
-
     return res.data;
   };
 
@@ -95,23 +86,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
-    setTheme('normal');
+    // Optional: Reset to dark on logout if desired, or keep user preference
+    // setTheme('dark'); 
   };
 
   const updateUser = (updatedData) => {
     setUser((prevUser) => {
-      // 1. Merge new data with old data
       const mergedData = { ...prevUser, ...updatedData };
-
-      // 2. Normalize it so full_name becomes fullName for the Navbar
       const newUser = normalizeUserData(mergedData);
-
-      // 3. Update LocalStorage so it persists on refresh
       localStorage.setItem("user", JSON.stringify(newUser));
-
-      // 4. Update theme if they just upgraded
-      if (newUser.is_premium) setTheme('premium');
-
       return newUser;
     });
   };
@@ -120,7 +103,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user,
       theme,
-      toggleTheme, // Export the toggle function
+      toggleTheme,
       setTheme,
       login,
       logout,

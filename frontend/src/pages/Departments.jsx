@@ -23,18 +23,21 @@ const departments = [
 ];
 
 const Departments = () => {
-  const { theme } = useContext(AuthContext);
-  const isPremium = theme === 'premium';
+  const { user, theme } = useContext(AuthContext);
+  // FIXED Logic: Tier vs Visual Mode
+  const isPremium = user?.is_premium;
+  const isDark = theme === 'dark';
 
   // --- Dynamic Theme Classes ---
-  const bgClass = isPremium ? "bg-slate-950" : "bg-slate-50";
+  // FIXED: Standard Patient now uses Emerald Green
+  const bgClass = isDark ? "bg-slate-950" : "bg-slate-50";
   const cardClass = isPremium 
-    ? "bg-slate-900 border-yellow-500/10 shadow-[0_4px_20px_rgba(251,191,36,0.05)] hover:border-yellow-500/40" 
-    : "bg-white border-slate-100 shadow-sm hover:border-emerald-500 hover:shadow-xl";
-  const textMain = isPremium ? "text-white" : "text-slate-900";
-  const textMuted = isPremium ? "text-slate-400" : "text-slate-500";
-  const accentColor = isPremium ? "text-yellow-500" : "text-emerald-600";
-  const iconBg = isPremium ? "bg-yellow-500/10" : "bg-slate-50";
+    ? (isDark ? "bg-slate-900 border-yellow-500/10 shadow-2xl hover:border-yellow-500/40" : "bg-white border-yellow-100 shadow-xl shadow-yellow-900/5 hover:border-yellow-400") 
+    : (isDark ? "bg-slate-900 border-emerald-500/10 shadow-2xl hover:border-emerald-500/40" : "bg-white border-emerald-100 shadow-sm hover:border-emerald-500 hover:shadow-xl");
+  const textMain = isDark ? "text-white" : "text-slate-900";
+  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
+  const accentColor = isPremium ? (isDark ? "text-yellow-500" : "text-yellow-700") : "text-emerald-600";
+  const iconBg = isDark ? "bg-slate-800" : "bg-slate-50";
 
   return (
     <div className={`min-h-screen pt-24 pb-20 px-4 transition-colors duration-500 ${bgClass}`}>
@@ -44,7 +47,8 @@ const Departments = () => {
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold tracking-widest mb-4"
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest mb-4 border animate-pulse 
+                ${isDark ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}
             >
               <Sparkles className="h-3 w-3" /> Elite Access
             </motion.div>
@@ -70,25 +74,29 @@ const Departments = () => {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.05 }}
               viewport={{ once: true }}
-              className={`p-8 rounded-[2.5rem] border transition-all group relative overflow-hidden ${cardClass}`}
+              className={`p-8 rounded-[2.5rem] border transition-all group relative overflow-hidden text-left ${cardClass}`}
             >
               {/* Subtle Premium Glow Effect */}
               {isPremium && (
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-yellow-500/5 rounded-full blur-3xl group-hover:bg-yellow-500/10 transition-colors"></div>
+                <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl group-hover:opacity-100 transition-opacity opacity-40 
+                  ${isDark ? 'bg-yellow-500/10' : 'bg-yellow-400/20'}`}></div>
               )}
 
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors mb-6 ${iconBg} ${isPremium ? 'text-yellow-500 group-hover:bg-yellow-500 group-hover:text-slate-950' : 'text-slate-400 group-hover:bg-emerald-500 group-hover:text-white'}`}>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors mb-6 ${iconBg} 
+                ${isPremium 
+                  ? (isDark ? 'text-yellow-500 group-hover:bg-yellow-500 group-hover:text-slate-950' : 'text-yellow-600 group-hover:bg-yellow-500 group-hover:text-white') 
+                  : (isDark ? 'text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white' : 'text-slate-400 group-hover:bg-emerald-600 group-hover:text-white')}`}>
                 {dept.icon}
               </div>
               
               <h3 className={`text-2xl font-serif font-bold mb-3 ${textMain}`}>{dept.name}</h3>
               <p className={`text-sm mb-4 leading-relaxed ${textMuted}`}>{dept.desc}</p>
               
-              <div className={`p-4 rounded-xl mb-6 ${isPremium ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                <span className={`text-[10px] uppercase font-bold tracking-widest block mb-1 ${isPremium ? 'text-yellow-500/50' : 'text-slate-400'}`}>
+              <div className={`p-4 rounded-xl mb-6 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
+                <span className={`text-[10px] uppercase font-bold tracking-widest block mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                   Common Symptoms
                 </span>
-                <p className={`text-xs font-medium ${isPremium ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   {dept.symptoms}
                 </p>
               </div>
