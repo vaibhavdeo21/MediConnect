@@ -84,16 +84,16 @@ const bookAppointment = async (req, res) => {
     );
 
     // C. Get Doctor Details for Email & Logging
+    // UPDATED: Now selecting u.id (doctor_user_id) to log for the doctor as well
     const doctorUser = await pool.query(
-      "SELECT u.email, d.full_name FROM doctors d JOIN users u ON d.user_id = u.id WHERE d.id = $1",
+      "SELECT u.id as doctor_user_id, u.email, d.full_name FROM doctors d JOIN users u ON d.user_id = u.id WHERE d.id = $1",
       [doctorId]
     );
 
     if (doctorUser.rows.length > 0) {
-      const doctorEmail = doctorUser.rows[0].email;
-      const doctorName = doctorUser.rows[0].full_name;
+      const { email: doctorEmail, full_name: doctorName, doctor_user_id: doctorUserId } = doctorUser.rows[0];
 
-      // --- LOG ACTIVITY FOR PATIENT ---
+      // 1. LOG FOR PATIENT
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
@@ -101,6 +101,17 @@ const bookAppointment = async (req, res) => {
           'appointment_confirmed',
           isEmergency ? 'Emergency SOS Sent' : 'Appointment Requested', 
           isEmergency ? `Priority alert sent to Dr. ${doctorName}` : `You requested a session with Dr. ${doctorName} for ${appointmentDate}`
+        ]
+      );
+
+      // 2. LOG FOR DOCTOR (FIXED)
+      await pool.query(
+        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+        [
+          doctorUserId, 
+          isEmergency ? 'alert' : 'message_received',
+          isEmergency ? 'Emergency Alert' : 'New Appointment Request', 
+          `${patientName} has requested a ${isEmergency ? 'PRIORITY' : ''} appointment for ${appointmentDate}.`
         ]
       );
 
@@ -131,6 +142,7 @@ const bookAppointment = async (req, res) => {
 const updateAppointmentStatus = async (req, res) => {
   const { id } = req.params; 
   const { status, meeting_link, appointment_date, appointment_time, reason } = req.body; 
+  const actingUserId = req.user.id; // The Doctor's ID (who is performing the action)
 
   try {
     const updatedAppt = await pool.query(
@@ -157,17 +169,28 @@ const updateAppointmentStatus = async (req, res) => {
     `, [id]);
 
     if (apptDetails.rows.length > 0) {
-      const { user_id, email, full_name, doctor_name, appointment_date: finalDate, appointment_time: finalTime, is_emergency } = apptDetails.rows[0];
+      const { user_id: patientUserId, email, full_name, doctor_name, appointment_date: finalDate, appointment_time: finalTime, is_emergency } = apptDetails.rows[0];
       const isRescheduled = appointment_date || appointment_time;
 
-      // --- LOG ACTIVITY FOR PATIENT ---
+      // 1. LOG FOR PATIENT
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
-          user_id,
+          patientUserId,
           isRescheduled ? 'profile_update' : (status === 'Confirmed' ? 'appointment_confirmed' : 'alert'),
           isRescheduled ? 'Appointment Rescheduled' : `Appointment ${status}`,
           `Dr. ${doctor_name} has ${isRescheduled ? 'rescheduled your visit to ' + finalDate : status.toLowerCase() + ' your appointment'}. ${reason ? 'Reason: ' + reason : ''}`
+        ]
+      );
+
+      // 2. LOG FOR DOCTOR (FIXED)
+      await pool.query(
+        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+        [
+          actingUserId,
+          isRescheduled ? 'profile_update' : 'appointment_confirmed',
+          isRescheduled ? 'You Rescheduled' : `You ${status}`,
+          `You have ${isRescheduled ? 'rescheduled' : status.toLowerCase()} the appointment with ${full_name}. ${isRescheduled ? `New time: ${finalDate} @ ${finalTime}` : ''}`
         ]
       );
 
@@ -195,22 +218,30 @@ const updateAppointmentStatus = async (req, res) => {
 // --- 4. DELETE APPOINTMENT ---
 const deleteAppointment = async (req, res) => {
     const { id } = req.params;
+    const actingUserId = req.user.id; // The Doctor
+
     try {
         // Fetch details before deletion for notification
         const details = await pool.query(`
-            SELECT p.user_id, d.full_name as doctor_name, a.appointment_date 
+            SELECT p.user_id as patient_user_id, p.full_name as patient_name, d.full_name as doctor_name, a.appointment_date 
             FROM appointments a 
             JOIN patients p ON a.patient_id = p.id 
             JOIN doctors d ON a.doctor_id = d.id 
             WHERE a.id = $1`, [id]);
 
         if (details.rows.length > 0) {
-            const { user_id, doctor_name, appointment_date } = details.rows[0];
+            const { patient_user_id, patient_name, doctor_name, appointment_date } = details.rows[0];
             
-            // Notify Patient via Activity Log
+            // 1. LOG FOR PATIENT
             await pool.query(
                 "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
-                [user_id, 'alert', 'Appointment Cancelled', `Dr. ${doctor_name} has removed your appointment for ${appointment_date} from the schedule.`]
+                [patient_user_id, 'alert', 'Appointment Cancelled', `Dr. ${doctor_name} has removed your appointment for ${appointment_date} from the schedule.`]
+            );
+
+            // 2. LOG FOR DOCTOR (FIXED)
+            await pool.query(
+                "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+                [actingUserId, 'alert', 'Appointment Removed', `You removed the appointment with ${patient_name} on ${appointment_date}.`]
             );
         }
 
@@ -259,4 +290,10 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
-module.exports = { getActiveCall, bookAppointment, getMyAppointments, updateAppointmentStatus, deleteAppointment };
+module.exports = { 
+    getActiveCall, 
+    bookAppointment, 
+    getMyAppointments, 
+    updateAppointmentStatus, 
+    deleteAppointment 
+};

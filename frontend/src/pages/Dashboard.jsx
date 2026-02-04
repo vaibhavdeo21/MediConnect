@@ -4,11 +4,13 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import {
   Users, Calendar, Clock, Activity, Search,
-  ArrowUpRight, TrendingUp, Shield, Sparkles,
-  CheckCircle2, AlertCircle, History, MessageSquare, Wallet, Power, Video, Radio, Zap, Trash2, Edit, X
+  ArrowUpRight, TrendingUp, Shield, Sparkles, Crown,
+  CheckCircle2, AlertCircle, History, MessageSquare, Wallet, Power, Video, Radio, Zap, Trash2, Edit, X, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
+// IMPORT THE NEW MODAL
+import RescheduleModal from "../components/RescheduleModal";
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } };
@@ -20,7 +22,11 @@ const Dashboard = () => {
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [isEmergencyActive, setIsEmergencyActive] = useState(user?.is_emergency_active || false);
   const [liveSession, setLiveSession] = useState(null);
-  const [appointments, setAppointments] = useState([]); // Doctor's Queue State
+  const [appointments, setAppointments] = useState([]); 
+  
+  // NEW STATE FOR RESCHEDULE MODAL
+  const [rescheduleAppt, setRescheduleAppt] = useState(null);
+
   const backendUrl = import.meta.env.VITE_API_URL;
 
   const isDoctor = user?.role === 'doctor';
@@ -39,34 +45,36 @@ const Dashboard = () => {
     
   const accentText = isDoctor ? (isDark ? "text-cyan-400" : "text-blue-700") : isPremium ? "text-yellow-500" : "text-emerald-600";
 
+  // Moved fetch logic to a reusable function to allow refreshing after update
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const promises = [
+        axios.get(`${backendUrl}/api/users/dashboard-stats`, { headers }),
+        axios.get(`${backendUrl}/api/users/activity-logs`, { headers }),
+        axios.get(`${backendUrl}/api/appointments/active-call`, { headers }),
+        // ADDED THIS: Ensure appointments are fetched for both Doctors AND Patients
+        axios.get(`${backendUrl}/api/appointments/my-appointments`, { headers })
+      ];
+
+      const [statsRes, logsRes, activeCallRes, apptRes] = await Promise.all(promises);
+      
+      setStats(statsRes.data);
+      setActivities(logsRes.data);
+      if (activeCallRes.data) setLiveSession(activeCallRes.data);
+      // Ensure appointments state is set for everyone
+      if (apptRes) setAppointments(apptRes.data);
+
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-        // Determine what to fetch based on role
-        const promises = [
-          axios.get(`${backendUrl}/api/users/dashboard-stats`, { headers }),
-          axios.get(`${backendUrl}/api/users/activity-logs`, { headers }),
-          axios.get(`${backendUrl}/api/appointments/active-call`, { headers })
-        ];
-        if (isDoctor) {
-            promises.push(axios.get(`${backendUrl}/api/appointments/my-appointments`, { headers }));
-        }
-
-        const [statsRes, logsRes, activeCallRes, apptRes] = await Promise.all(promises);
-        
-        setStats(statsRes.data);
-        setActivities(logsRes.data);
-        if (activeCallRes.data) setLiveSession(activeCallRes.data);
-        if (isDoctor && apptRes) setAppointments(apptRes.data);
-
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-      } finally {
-        setLoadingLogs(false);
-      }
-    };
     fetchData();
   }, [backendUrl, isDoctor]);
 
@@ -99,6 +107,19 @@ const Dashboard = () => {
     }
   };
 
+  const handleStatusUpdate = async (id, status) => {
+    try {
+        const token = localStorage.getItem("token");
+        const meetingLink = status === 'Confirmed' ? `https://meet.mediconnect.com/${id}` : null;
+        await axios.put(`${backendUrl}/api/appointments/status/${id}`, 
+            { status, meeting_link: meetingLink }, 
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        fetchData();
+        toast.success(`Appointment ${status}`);
+    } catch (err) { toast.error("Action Failed"); }
+  };
+
   if (!stats) return (
     <div className={`min-h-screen flex items-center justify-center font-serif animate-pulse ${isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-400'}`}>
       Initializing {isDoctor ? 'Clinical' : 'Registry'} Dashboard...
@@ -120,9 +141,19 @@ const Dashboard = () => {
 
   return (
     <div className={`${pageBg} min-h-screen transition-colors duration-500`}>
+      {/* MODAL: Render RescheduleModal when an appointment is selected */}
+      {rescheduleAppt && (
+        <RescheduleModal 
+            isOpen={!!rescheduleAppt} 
+            onClose={() => setRescheduleAppt(null)} 
+            appointment={rescheduleAppt}
+            onUpdate={fetchData} // Refresh list after update
+        />
+      )}
+
       <motion.div variants={container} initial="hidden" animate="show" className="max-w-7xl mx-auto px-4 py-12 font-sans">
 
-        {/* PRIORITY LIVE CALL SECTION (Patient View) */}
+        {/* PRIORITY LIVE CALL SECTION */}
         <AnimatePresence>
           {liveSession && !isDoctor && (
             <motion.div 
@@ -195,75 +226,7 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* --- DOCTOR SCHEDULE SECTION WITH EMERGENCY HIGHLIGHTS --- */}
-        {isDoctor && (
-            <motion.div variants={item} className="mb-12 text-left">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-800 text-cyan-400' : 'bg-blue-50 text-blue-600'}`}>
-                        <Calendar className="h-5 w-5" />
-                    </div>
-                    <h3 className={`text-2xl font-serif font-bold ${textMain}`}>Upcoming Appointments</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {appointments.map((appt) => (
-                        <div key={appt.id} className={`p-6 rounded-[2rem] border transition-all relative overflow-hidden group ${
-                            appt.is_emergency 
-                            ? (isDark ? 'bg-red-900/10 border-red-500/30' : 'bg-red-50/50 border-red-200') 
-                            : cardBase
-                        }`}>
-                            {appt.is_emergency && (
-                                <div className="absolute top-0 right-0 px-4 py-1 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl shadow-lg animate-pulse z-10">
-                                    <Zap className="h-3 w-3 inline-block mr-1" /> Emergency
-                                </div>
-                            )}
-                            
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className={`text-[10px] font-black uppercase mb-1 ${appt.is_emergency ? 'text-red-500' : 'text-slate-500'}`}>
-                                        {new Date(appt.appointment_date).toDateString()} @ {appt.appointment_time}
-                                    </p>
-                                    <h4 className={`text-xl font-bold mb-1 ${textMain}`}>{appt.patient_name}</h4>
-                                    <p className={`text-xs font-medium mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        Status: <span className={appt.status === 'Confirmed' ? 'text-emerald-500' : 'text-amber-500'}>{appt.status}</span>
-                                    </p>
-                                    
-                                    <div className="flex gap-3">
-                                        <button 
-                                            onClick={() => handleDeleteAppointment(appt.id)}
-                                            className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 transition-colors"
-                                            title="Cancel Appointment"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                        <Link 
-                                            to={`/reschedule/${appt.id}`}
-                                            className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                                            title="Reschedule Appointment"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Link>
-                                    </div>
-                                </div>
-                                <div className={`p-4 rounded-2xl ${
-                                    appt.is_emergency 
-                                    ? 'bg-red-600 text-white shadow-red-500/30 shadow-lg' 
-                                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-blue-50 text-blue-600')
-                                }`}>
-                                    {appt.is_emergency ? <Zap className="h-6 w-6" /> : <Calendar className="h-6 w-6" />}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {appointments.length === 0 && (
-                        <div className={`col-span-full py-10 text-center rounded-[2rem] border border-dashed ${isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
-                            No upcoming appointments.
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-        )}
-
+        {/* --- STAT CARDS --- */}
         <motion.div variants={container} className={`grid grid-cols-1 ${isDoctor ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6 mb-12`}>
           {isDoctor ? (
             <>
@@ -281,46 +244,114 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Link to={isDoctor ? "/my-appointments" : "/doctors"}>
-                <motion.div whileHover={{ y: -5 }} className={`rounded-[2.5rem] p-10 border transition-all group relative overflow-hidden h-full ${cardBase}`}>
-                  <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-16 -mt-16 transition-transform group-hover:scale-110 ${isDoctor ? 'bg-cyan-500/5' : isPremium ? 'bg-yellow-500/5' : 'bg-emerald-500/5'}`}></div>
-                  <div className="relative z-10">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${isDoctor ? (isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-blue-50 text-blue-600') : isPremium ? (isDark ? 'bg-yellow-500/10 text-yellow-500' : 'bg-yellow-100 text-yellow-600') : (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600')}`}>
-                      {isDoctor ? <Calendar className="h-8 w-8" /> : <Search className="h-8 w-8" />}
+        {/* --- APPOINTMENT LIST SECTION (RESTORED FOR PATIENTS) --- */}
+        {/* Shows for both Doctors (as requests) and Patients (as booked sessions) */}
+        <motion.div variants={item} className="mb-12">
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}><Calendar className="h-5 w-5" /></div>
+                    <h3 className={`text-2xl font-serif font-bold ${textMain}`}>{isDoctor ? 'Patient Requests' : 'My Upcoming Sessions'}</h3>
+                </div>
+                <span className={`px-4 py-1 rounded-full text-xs font-bold border ${isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200'}`}>Total: {appointments.length}</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {appointments.map((appt) => (
+                    <div key={appt.id} className={`p-6 rounded-[2rem] border transition-all relative overflow-hidden group 
+                        ${appt.is_emergency ? 'bg-gradient-to-r from-red-50 to-white border-red-200 shadow-xl shadow-red-500/10' : cardBase + ' shadow-sm hover:shadow-md'}
+                        ${isDark && appt.is_emergency ? '!bg-none !bg-red-950/20 !border-red-500/50' : ''}`}>
+                        
+                        {appt.is_emergency && <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-600 animate-pulse"></div>}
+
+                        <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+                            <div className="flex items-center gap-6 w-full md:w-auto">
+                                {/* Initial Icon */}
+                                <div className={`h-14 w-14 rounded-2xl flex items-center justify-center text-xl font-bold shadow-sm ${appt.is_emergency ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+                                    {(isDoctor ? appt.patient_name : appt.doctor_name).charAt(0)}
+                                </div>
+                                <div className="text-left">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h4 className={`text-xl font-serif font-bold ${textMain}`}>{isDoctor ? appt.patient_name : `Dr. ${appt.doctor_name}`}</h4>
+                                        {(isDoctor ? appt.is_patient_premium : isPremium) && <span className="px-2 py-0.5 bg-yellow-500 text-slate-950 text-[10px] font-bold uppercase rounded-md flex items-center gap-1"><Crown className="h-3 w-3" /> VIP</span>}
+                                        {appt.is_emergency && <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold uppercase rounded-md flex items-center gap-1 animate-pulse"><Zap className="h-3 w-3 fill-white" /> Emergency</span>}
+                                    </div>
+                                    <div className={`flex items-center gap-4 text-xs font-medium opacity-70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(appt.appointment_date).toDateString()}</span>
+                                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {appt.appointment_time}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 w-full md:w-auto justify-end mt-4 md:mt-0">
+                                {isDoctor && appt.status === 'Pending' ? (
+                                    <>
+                                        <button onClick={() => handleDeleteAppointment(appt.id)} className="px-4 py-2 rounded-xl border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 transition-colors flex items-center gap-2"><X className="h-3 w-3" /> Decline</button>
+                                        <button onClick={() => handleStatusUpdate(appt.id, 'Confirmed')} className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-colors flex items-center gap-2"><Check className="h-3 w-3" /> Accept</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest ${appt.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{appt.status}</span>
+                                        <div className="flex gap-2">
+                                            {appt.status === 'Confirmed' && appt.meeting_link && (
+                                                <button onClick={() => window.open(appt.meeting_link, '_blank')} className="p-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-md" title="Join Call"><Video className="h-4 w-4" /></button>
+                                            )}
+                                            {isDoctor ? (
+                                                <>
+                                                    <button onClick={() => setRescheduleAppt(appt)} className="p-3 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition" title="Reschedule"><Edit className="h-4 w-4" /></button>
+                                                    <button onClick={() => handleDeleteAppointment(appt.id)} className="p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                                                </>
+                                            ) : (
+                                                // Patient Actions: Cancel Only
+                                                <button onClick={() => handleDeleteAppointment(appt.id)} className="p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition" title="Cancel Appointment"><X className="h-4 w-4" /></button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <h3 className={`text-3xl font-serif font-bold mb-2 ${textMain}`}>{isDoctor ? 'Schedule' : 'Find a Doctor'}</h3>
-                    <p className={`${textSub} mb-6`}>{isDoctor ? 'Manage your patient queue.' : 'Book top specialists instantly.'}</p>
-                    <span className={`font-bold flex items-center gap-2 ${accentText}`}>
-                      {isDoctor ? 'Open Calendar' : 'Book Now'} <ArrowUpRight className="h-5 w-5" />
-                    </span>
+                ))}
+                {appointments.length === 0 && <div className={`col-span-full py-12 text-center rounded-[2rem] border border-dashed ${textSub} ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>No sessions scheduled.</div>}
+            </div>
+        </motion.div>
+
+        {/* BOTTOM NAV GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+          {/* Left Column: Stacked Cards */}
+          <div className="flex flex-col gap-6">
+            <Link to={isDoctor ? "/my-appointments" : "/doctors"}>
+                <motion.div whileHover={{ y: -5 }} className={`rounded-[2rem] p-6 border transition-all group relative overflow-hidden ${cardBase}`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110 ${isPremium ? 'bg-yellow-500/10' : 'bg-blue-50/50'}`}></div>
+                  <div className="relative z-10">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isPremium ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-100 text-blue-600'}`}>{isDoctor ? <Calendar className="h-6 w-6" /> : <Search className="h-6 w-6" />}</div>
+                    <h3 className={`text-2xl font-serif font-bold mb-1 ${textMain}`}>{isDoctor ? 'Schedule' : 'Find Doctors'}</h3>
+                    <p className={`text-sm ${textSub} mb-4`}>{isDoctor ? 'Manage patient flow.' : 'Connect with specialists.'}</p>
+                    <span className={`font-bold flex items-center gap-2 text-sm ${accentText}`}>Access Now <ArrowUpRight className="h-4 w-4" /></span>
                   </div>
                 </motion.div>
-              </Link>
-
-              <Link to={isDoctor ? "/wallet" : "/profile"}>
-                <motion.div whileHover={{ y: -5 }} className={`rounded-[2.5rem] p-10 border transition-all group relative h-full ${cardBase}`}>
+            </Link>
+            
+            <Link to={isDoctor ? "/wallet" : "/profile"}>
+                <motion.div whileHover={{ y: -5 }} className={`rounded-[2rem] p-6 border transition-all group relative overflow-hidden ${cardBase}`}>
                   <div className="relative z-10">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 border transition-colors ${
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 border transition-colors ${
                       isDoctor ? (isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-50 text-blue-600') 
                       : isPremium ? (isDark ? 'bg-yellow-500/10 text-yellow-500' : 'bg-yellow-100 text-yellow-600')
                       : (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600')
                     }`}>
-                      {isDoctor ? <Wallet className="h-8 w-8" /> : <Users className="h-8 w-8" />}
+                      {isDoctor ? <Wallet className="h-6 w-6" /> : <Users className="h-6 w-6" />}
                     </div>
-                    <h3 className={`text-3xl font-serif font-bold mb-2 ${textMain}`}>{isDoctor ? 'Earnings' : 'Profile'}</h3>
-                    <p className={`mb-6 ${textSub}`}>{isDoctor ? 'Track fees and wallet balance.' : 'Update clinical or personal health data.'}</p>
-                    <span className={`font-bold flex items-center gap-2 ${accentText}`}>Settings <ArrowUpRight className="h-5 w-5" /></span>
+                    <h3 className={`text-2xl font-serif font-bold mb-1 ${textMain}`}>{isDoctor ? 'Earnings' : 'Profile'}</h3>
+                    <p className={`text-sm ${textSub} mb-4`}>{isDoctor ? 'Track wallet balance.' : 'Update health data.'}</p>
+                    <span className={`font-bold flex items-center gap-2 text-sm ${accentText}`}>Settings <ArrowUpRight className="h-4 w-4" /></span>
                   </div>
                 </motion.div>
-              </Link>
-            </div>
+            </Link>
           </div>
 
-          <motion.div variants={item} className={`rounded-[2.5rem] p-8 border flex flex-col h-full ${cardBase}`}>
-            <div className="flex items-center gap-3 mb-8">
+          {/* Right Column: Recent Activity (Max 3 Logs) */}
+          <motion.div variants={item} className={`rounded-[2.5rem] p-8 border transition-all flex flex-col ${cardBase}`}>
+            <div className="flex items-center gap-3 mb-6">
               <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-800 text-cyan-400' : 'bg-slate-100 text-slate-600'}`}>
                 <History className="h-5 w-5" />
               </div>
@@ -332,14 +363,14 @@ const Dashboard = () => {
                   {[1, 2, 3].map(i => <div key={i} className={`h-12 w-full rounded-xl animate-pulse ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}></div>) }
                 </div>
               ) : activities.length > 0 ? (
-                activities.slice(0, 5).map((act) => (
+                activities.slice(0, 3).map((act) => (
                   <ActivityItem key={act.id} isDark={isDark} icon={getActivityIcon(act.type)} title={act.title} desc={act.description} time={new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                 ))
               ) : (
                 <p className={`text-sm italic ${textSub} text-center py-10`}>No activity records.</p>
               )}
             </div>
-            <Link to="/activity" className={`w-full mt-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-center transition-colors ${isDoctor ? (isDark ? 'bg-slate-800 text-cyan-400' : 'bg-blue-50 text-blue-700') : (isDark ? 'bg-slate-800 text-emerald-400 hover:bg-slate-700' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100')}`}>
+            <Link to="/activity" className={`w-full mt-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-center transition-colors ${isDark ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
               View Full Audit Log
             </Link>
           </motion.div>
