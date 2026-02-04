@@ -6,9 +6,14 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState('normal'); 
-
   const backendUrl = import.meta.env.VITE_API_URL;
+  const [theme, setTheme] = useState(localStorage.getItem('theme_mode') || 'dark');
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme_mode', newTheme);
+  };
 
   const normalizeUserData = (data) => {
     return {
@@ -30,12 +35,12 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.get(`${backendUrl}/api/users/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       const normalizedData = normalizeUserData(res.data);
-      
+
       localStorage.setItem("user", JSON.stringify(normalizedData));
       setUser({ token, ...normalizedData });
-      
+
       if (normalizedData.is_premium || normalizedData.role === 'doctor') {
         setTheme('premium');
       } else {
@@ -58,7 +63,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("token");
-      
+
       // FIX: If we have a token, we MUST try to fetch the user, 
       // even if 'savedUser' is missing from localStorage.
       if (token) {
@@ -78,10 +83,10 @@ export const AuthProvider = ({ children }) => {
 
     localStorage.setItem("token", res.data.token);
     localStorage.setItem("user", JSON.stringify(normalizedUser));
-    
+
     setUser({ token: res.data.token, ...normalizedUser });
     if (normalizedUser.is_premium) setTheme('premium');
-    
+
     return res.data;
   };
 
@@ -95,25 +100,35 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = (updatedData) => {
     setUser((prevUser) => {
-      const newUser = normalizeUserData({ ...prevUser, ...updatedData });
+      // 1. Merge new data with old data
+      const mergedData = { ...prevUser, ...updatedData };
+
+      // 2. Normalize it so full_name becomes fullName for the Navbar
+      const newUser = normalizeUserData(mergedData);
+
+      // 3. Update LocalStorage so it persists on refresh
       localStorage.setItem("user", JSON.stringify(newUser));
+
+      // 4. Update theme if they just upgraded
       if (newUser.is_premium) setTheme('premium');
+
       return newUser;
     });
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      theme, 
-      setTheme, 
-      login, 
-      logout, 
-      updateUser, 
-      refreshUser, 
-      loading 
+    <AuthContext.Provider value={{
+      user,
+      theme,
+      toggleTheme, // Export the toggle function
+      setTheme,
+      login,
+      logout,
+      updateUser,
+      refreshUser,
+      loading
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

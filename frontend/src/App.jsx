@@ -23,6 +23,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Departments from './pages/Departments';
 import Dashboard from './pages/Dashboard';
 import ActivityLog from './pages/ActivityLog';
+import WalletPage from './pages/Wallet';
 
 // --- PROTECTED ROUTE COMPONENT ---
 const ProtectedRoute = ({ children }) => {
@@ -75,13 +76,13 @@ const AppContent = () => {
               <Dashboard />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/activity" element={
             <ProtectedRoute>
               <ActivityLog />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/departments" element={
             <ProtectedRoute>
               <Departments />
@@ -100,6 +101,12 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
+          <Route path="/wallet" element={
+            <ProtectedRoute>
+              <WalletPage />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/subscribe" element={
             <ProtectedRoute>
               <Subscribe />

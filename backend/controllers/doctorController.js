@@ -57,4 +57,34 @@ const getAllDoctors = async (req, res) => {
   }
 };
 
-module.exports = { getDoctorProfile, updateDoctorProfile, getAllDoctors };
+const getDoctorWallet = async (req, res) => {
+  try {
+    // req.user.id comes from your authMiddleware
+    const userId = req.user.id;
+
+    // 1. Get the current balance for the doctor
+    // Note: Ensure your 'doctors' or 'users' table has a wallet_balance column
+    const balanceResult = await pool.query(
+      'SELECT wallet_balance FROM users WHERE id = $1', 
+      [userId]
+    );
+
+    // 2. Get recent transaction history
+    // Note: This requires a 'transactions' table in your DB
+    const transactionsResult = await pool.query(
+      'SELECT id, amount, type, description, created_at as date FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20',
+      [userId]
+    );
+
+    res.json({
+      balance: balanceResult.rows[0]?.wallet_balance || 0,
+      transactions: transactionsResult.rows
+    });
+
+  } catch (err) {
+    console.error("Wallet Sync Error:", err.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+module.exports = { getDoctorProfile, updateDoctorProfile, getAllDoctors, getDoctorWallet };

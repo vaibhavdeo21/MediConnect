@@ -11,12 +11,15 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const registerUser = async (req, res) => {
   const { email, password, role, fullName, specialization, consultationFee, referralCode } = req.body;
   try {
+    // 1. Check if user exists
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) return res.status(400).json({ message: "User already exists" });
 
+    // 2. Hash Password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // 3. Handle Referral Logic
     let referredBy = null;
     if (referralCode) {
       const referrer = await pool.query("SELECT referral_code FROM users WHERE referral_code = $1", [referralCode]);
@@ -28,17 +31,25 @@ const registerUser = async (req, res) => {
 
     const newReferralCode = 'MC-' + Math.random().toString(36).substring(2, 7).toUpperCase();
 
+    // 4. Insert into 'users' table - Ensure column name is password_hash
     const newUser = await pool.query(
       'INSERT INTO users (email, password_hash, role, referral_code, referred_by, is_premium) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING *',
       [email, passwordHash, role, newReferralCode, referredBy]
     );
+    
     const userId = newUser.rows[0].id;
 
+    // 5. Insert into Role-Specific Tables
     if (role === 'doctor') {
-      await pool.query(
-        'INSERT INTO doctors (user_id, full_name, specialization, consultation_fee) VALUES ($1, $2, $3, $4)', 
-        [userId, fullName, specialization, consultationFee]
-      );
+  await pool.query(
+    'INSERT INTO doctors (user_id, full_name, specialization, consultation_fee) VALUES ($1, $2, $3, $4)', 
+    [
+      userId, 
+      fullName, 
+      specialization || 'General Physician', // FALLBACK: Prevents the null constraint error
+      consultationFee || 0                   // FALLBACK: Ensures fee is at least 0
+    ]
+  );
     } else {
       await pool.query(
         'INSERT INTO patients (user_id, full_name) VALUES ($1, $2)', 
@@ -48,12 +59,13 @@ const registerUser = async (req, res) => {
 
     const token = jwt.sign({ id: userId, role }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.status(201).json({ token, user: { id: userId, email, role, fullName, is_premium: false } });
+
   } catch (err) {
     console.error("Register Error:", err.message);
-    res.status(500).send("Server Error");
+    // Return the actual error message to the frontend for debugging
+    res.status(500).json({ message: "Database Error: " + err.message }); 
   }
 };
-
 // --- 2. LOGIN USER ---
 const loginUser = async (req, res) => {
   const { email, password } = req.body;

@@ -6,7 +6,8 @@ const authorize = require('../middleware/authMiddleware'); // Ensure authorize i
 const { 
   getDoctorProfile, 
   updateDoctorProfile, 
-  getAllDoctors 
+  getAllDoctors,
+  getDoctorWallet 
 } = require('../controllers/doctorController');
 
 // Public Route: Get all doctors (for Find Doctors page)
@@ -19,5 +20,6 @@ router.put('/profile', authMiddleware, updateDoctorProfile);
 
 router.post('/review', authorize, addReview);
 router.get('/:doctorId/reviews', getDoctorReviews);
+router.get('/wallet', authMiddleware, getDoctorWallet);
 
 module.exports = router;
