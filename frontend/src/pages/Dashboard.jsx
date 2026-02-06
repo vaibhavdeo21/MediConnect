@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
-// IMPORT THE NEW MODAL
 import RescheduleModal from "../components/RescheduleModal";
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -157,13 +156,13 @@ const Dashboard = () => {
     if (!isDoctor) {
       toast.error("Doctor is busy. Please look for another emergency doctor immediately!", {
         position: "top-center",
-        autoClose: false, // User must manually close it
+        autoClose: false,
         closeOnClick: false,
         draggable: false,
         theme: "dark"
       });
     }
-    fetchData(); // Refresh to show 'Expired' status
+    fetchData();
   };
 
   const toggleEmergencyActive = async () => {
@@ -186,7 +185,6 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success(`SOS ${status === 'Confirmed' ? 'Accepted' : 'Declined'}`);
-      // Auto-refresh lists
       window.location.reload();
     } catch (err) { toast.error("Action failed"); }
   };
@@ -220,10 +218,11 @@ const Dashboard = () => {
       {rescheduleAppt && (
         <RescheduleModal isOpen={!!rescheduleAppt} onClose={() => setRescheduleAppt(null)} appointment={rescheduleAppt} onUpdate={fetchData} />
       )}
-      {isDoctor && appointments.some(a => a.is_emergency && a.status === 'Pending') && (
-        <div className="space-y-4 mb-12">
+      {/* --- TRIAGE QUEUE (DOCTOR) OR TRIAGE WATCH (PATIENT) --- */}
+      {appointments.some(a => a.is_emergency && a.status === 'Pending') && (
+        <div className="space-y-4 mb-12 max-w-7xl mx-auto px-4 pt-12">
           <h3 className="text-xl font-serif font-bold text-red-500 flex items-center gap-2">
-            <Zap className="h-5 w-5 fill-red-500" /> Active Emergency Triage
+            <Zap className="h-5 w-5 fill-red-500" /> {isDoctor ? 'Active Emergency Triage' : 'Waiting for Doctor...'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {appointments.filter(a => a.is_emergency && a.status === 'Pending').map(appt => (
@@ -236,34 +235,36 @@ const Dashboard = () => {
               >
                 <div className="text-left">
                   <p className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">
-                    Immediate SOS Request
+                    {isDoctor ? 'Immediate SOS Request' : 'Connecting to Specialist'}
                   </p>
-                  {/* FIXED: Applied styles.textPrimary for visibility */}
                   <h4 className={`text-xl font-bold ${styles.textPrimary}`}>
-                    {appt.patient_name}
+                    {isDoctor ? appt.patient_name : `Dr. ${appt.doctor_name}`}
                   </h4>
-                  <EmergencyTimer createdAt={appt.created_at} />
+                  <EmergencyTimer createdAt={appt.created_at} onExpire={onTimerExpire} isPatient={!isDoctor} />
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleStatusUpdate(appt.id, 'Confirmed')}
-                    className="p-4 bg-green-600 rounded-2xl hover:bg-green-500 transition-all text-white shadow-lg shadow-green-900/20"
-                  >
-                    <Check className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleStatusUpdate(appt.id, 'Cancelled')}
-                    className="p-4 bg-slate-800 rounded-2xl hover:bg-slate-700 transition-all text-red-500 border border-white/5"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+                {isDoctor && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleStatusUpdate(appt.id, 'Confirmed')}
+                      className="p-4 bg-green-600 rounded-2xl hover:bg-green-500 transition-all text-white shadow-lg shadow-green-900/20"
+                    >
+                      <Check className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleStatusUpdate(appt.id, 'Cancelled')}
+                      className="p-4 bg-slate-800 rounded-2xl hover:bg-slate-700 transition-all text-red-500 border border-white/5"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
         </div>
       )}
-      {/* --- GEMINI CHATBOT FLOATING WIDGET (PREMIUM PATIENTS ONLY) --- */}
+
+      {/* --- GEMINI CHATBOT FLOATING WIDGET --- */}
       {isPremium && !isDoctor && (
         <>
           <AnimatePresence>
@@ -379,8 +380,8 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        <motion.div variants={item} className="mb-12">
-          <div className="flex items-center justify-between mb-8 text-left">
+        <motion.div variants={item} className="mb-12 text-left">
+          <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}><Calendar className="h-5 w-5" /></div>
               <h3 className={`text-2xl font-serif font-bold ${styles.textPrimary}`}>{isDoctor ? 'Patient Requests' : 'My Upcoming Sessions'}</h3>
@@ -403,9 +404,12 @@ const Dashboard = () => {
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-3 mb-1">
-                        <h4 className={`text-xl font-serif font-bold ${styles.textPrimary}`}>{isDoctor ? appt.patient_name : `Dr. ${appt.doctor_name}`}</h4>
+                        <h4 className={`text-xl font-serif font-bold ${styles.textPrimary} ${appt.status === 'Expired' ? 'line-through opacity-50' : ''}`}>
+                          {isDoctor ? appt.patient_name : `Dr. ${appt.doctor_name}`}
+                        </h4>
                         {(isDoctor ? appt.is_patient_premium : isPremium) && <span className="px-2 py-0.5 bg-yellow-500 text-slate-950 text-[10px] font-bold uppercase rounded-md flex items-center gap-1"><Crown className="h-3 w-3" /> VIP</span>}
-                        {appt.is_emergency && <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold uppercase rounded-md flex items-center gap-1 animate-pulse"><Zap className="h-3 w-3 fill-white" /> Emergency</span>}
+                        {appt.is_emergency && appt.status !== 'Expired' && <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold uppercase rounded-md flex items-center gap-1 animate-pulse"><Zap className="h-3 w-3 fill-white" /> Emergency</span>}
+                        {appt.status === 'Expired' && <span className="px-2 py-0.5 bg-slate-700 text-white text-[10px] font-bold uppercase rounded-md">TIME UP</span>}
                       </div>
                       <div className={`flex items-center gap-4 text-xs font-medium opacity-70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(appt.appointment_date).toDateString()}</span>
@@ -478,13 +482,13 @@ const Dashboard = () => {
           </div>
 
           <motion.div variants={item} className={`rounded-[2.5rem] p-8 border transition-all flex flex-col ${styles.cardBg}`}>
-            <div className="flex items-center gap-3 mb-6 text-left">
+            <div className="flex items-center gap-3 mb-6">
               <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-800 text-cyan-400' : 'bg-slate-100 text-slate-600'}`}>
                 <History className="h-5 w-5" />
               </div>
               <h3 className={`text-xl font-serif font-bold ${styles.textPrimary}`}>Recent Activity</h3>
             </div>
-            <div className="space-y-6 flex-1 text-left">
+            <div className="space-y-6 flex-1">
               {activities.length > 0 ? (
                 activities.slice(0, 3).map((act) => (
                   <div key={act.id} className="flex gap-4 items-start group">
@@ -510,13 +514,24 @@ const Dashboard = () => {
   );
 };
 
-const StatCard = ({ icon, title, value, color, styles, variants, isPremium }) => {
+const StatCard = ({ icon, title, value, color, styles, variants, isPremium, isNegative }) => {
   const cardStyle = isPremium ? `bg-slate-900 border border-yellow-500/20 text-white` : `bg-white border border-slate-100 text-slate-900`;
   const iconBg = isPremium ? `bg-yellow-500/20 text-yellow-400` : `bg-gradient-to-br ${styles.statColors[color]} text-white`;
+  
   return (
     <motion.div variants={variants} whileHover={{ y: -5 }} className={`p-6 rounded-3xl shadow-lg flex items-center gap-5 ${cardStyle}`}>
       <div className={`p-4 rounded-2xl shadow-xl ${iconBg}`}>{icon}</div>
-      <div className="text-left"><p className="text-xs font-bold opacity-60 uppercase tracking-widest">{title}</p><h4 className="text-3xl font-serif font-bold mt-1">{value || 0}</h4></div>
+      <div className="text-left">
+        <p className="text-xs font-bold opacity-60 uppercase tracking-widest">{title}</p>
+        <h4 className={`text-3xl font-serif font-bold mt-1 ${isNegative ? 'text-red-500' : ''}`}>
+          {value || 0}
+        </h4>
+        {isNegative && (
+          <p className="text-[10px] text-red-500 font-black mt-1 animate-pulse">
+            DEBT: ₹1000 PENALTY APPLIED
+          </p>
+        )}
+      </div>
     </motion.div>
   );
 };

@@ -77,8 +77,6 @@ const bookAppointment = async (req, res) => {
     }
 
     // --- UPDATED FOR 10-MIN TRIAGE ---
-    // All appointments start as 'Pending'. 
-    // Meeting link is pre-generated but only accessible once status is 'Confirmed'.
     const status = 'Pending';
     const meetingLink = isEmergency
       ? `https://meet.jit.si/MediConnect-SOS-${Date.now()}-${Math.floor(Math.random() * 1000)}`
@@ -91,7 +89,6 @@ const bookAppointment = async (req, res) => {
       [patientId, doctorId, appointmentDate, appointmentTime, status, isEmergency || false, meetingLink]
     );
 
-    // C. Get Doctor Details for Email & Logging
     const doctorUser = await pool.query(
       "SELECT u.id as doctor_user_id, u.email, d.full_name FROM doctors d JOIN users u ON d.user_id = u.id WHERE d.id = $1",
       [doctorId]
@@ -100,7 +97,6 @@ const bookAppointment = async (req, res) => {
     if (doctorUser.rows.length > 0) {
       const { email: doctorEmail, full_name: doctorName, doctor_user_id: doctorUserId } = doctorUser.rows[0];
 
-      // 1. LOG FOR PATIENT
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
@@ -111,7 +107,6 @@ const bookAppointment = async (req, res) => {
         ]
       );
 
-      // 2. LOG FOR DOCTOR
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [
@@ -122,7 +117,6 @@ const bookAppointment = async (req, res) => {
         ]
       );
 
-      // Email Logic
       const emailSubject = isEmergency ? `🚨 URGENT: 10m Triage Window for ${patientName}` : `New Appointment Request`;
       const emailBody = `
         <h3>Hello Dr. ${doctorName},</h3>
@@ -259,7 +253,7 @@ const getMyAppointments = async (req, res) => {
     const role = req.user.role;
 
     let queryText = `
-      SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.is_emergency, a.meeting_link, a.created_at,
+      SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.is_emergency, a.meeting_link, a.created_at, a.penalty_applied,
              a.doctor_id,
              p.full_name AS patient_name,
              u_p.is_premium AS is_patient_premium,
@@ -289,9 +283,9 @@ const getMyAppointments = async (req, res) => {
   }
 };
 
+// --- 6. APPLY PENALTIES ---
 const applyEmergencyPenalties = async () => {
   try {
-    // 1. Find expired emergency appointments (older than 10 mins, still Pending)
     const expiredAppts = await pool.query(`
       SELECT a.id, a.doctor_id, a.patient_id, d.user_id as doctor_user_id, p.user_id as patient_user_id, p.full_name as patient_name
       FROM appointments a
@@ -304,28 +298,28 @@ const applyEmergencyPenalties = async () => {
     `);
 
     for (let appt of expiredAppts.rows) {
-      // A. Reduce Doctor Wallet by 1000 (Allow Negative)
+      // Deduct ₹1000 from the wallet (allowing negative balance)
       await pool.query(
-        "UPDATE doctors SET wallet_balance = wallet_balance - 1000 WHERE id = $1",
+        "UPDATE doctors SET wallet_balance = wallet_balance - 1000, updated_at = NOW() WHERE id = $1",
         [appt.doctor_id]
       );
 
-      // B. Mark Appointment as 'Expired'
+      // Mark appointment as Expired so it stops the timer
       await pool.query(
         "UPDATE appointments SET status = 'Expired', penalty_applied = true WHERE id = $1",
         [appt.id]
       );
 
-      // C. Notify Patient in Activity Log
+      // Log for Doctor with the explicit amount deducted
+      await pool.query(
+        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
+        [appt.doctor_user_id, 'alert', 'Penalty Applied', '₹1000 deducted from earnings due to missed emergency window.']
+      );
+
+      // Log for Patient
       await pool.query(
         "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
         [appt.patient_user_id, 'alert', 'Doctor Unavailable', 'The doctor is busy. Please look for another emergency doctor immediately.']
-      );
-
-      // D. Log Penalty for Doctor
-      await pool.query(
-        "INSERT INTO activity_logs (user_id, type, title, description) VALUES ($1, $2, $3, $4)",
-        [appt.doctor_user_id, 'alert', 'Penalty Applied', '₹1000 deducted due to missed emergency triage window.']
       );
     }
   } catch (err) {
