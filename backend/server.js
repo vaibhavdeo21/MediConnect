@@ -8,6 +8,7 @@ const userRoutes = require('./routes/userRoutes');
 const prescriptionRoutes = require('./routes/prescriptionRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const path = require('path');
+const aiRoutes = require('./routes/aiRoutes');
 
 require('dotenv').config();
 

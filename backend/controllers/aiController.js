@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
+// Ensure the API key is being read correctly from .env
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const chatWithGemini = async (req, res) => {
@@ -9,8 +10,13 @@ const chatWithGemini = async (req, res) => {
   if (!message) return res.status(400).json({ error: "Message is required" });
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-
+    // FIX: Switched to gemini-2.0-flash which is the current stable standard 
+    // and resolves the 404 "model not found" error for v1beta.
+    // Replace whatever model line you have with this specific one:
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      apiVersion: 'v1'
+    });
     const prompt = `
       You are the "MediConnect Elite AI Assistant," a premium medical concierge for users in India.
       Your goal is to provide brief, high-end medical FAQs and health tips.
@@ -32,8 +38,8 @@ const chatWithGemini = async (req, res) => {
 
     res.json({ reply: text });
   } catch (error) {
-    console.error("Gemini Error:", error);
-    res.status(500).json({ error: "AI Service Unavailable" });
+    console.error("Gemini Error:", error.message);
+    res.status(500).json({ error: "MediConnect AI is currently over-capacity. Please try again." });
   }
 };
 
