@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const BookingModal = ({ isOpen, onClose, doctor }) => {
   const { theme } = useContext(AuthContext);
+  const isPremium = theme === 'premium';
   const isDark = theme === 'dark';
   
   const [date, setDate] = useState('');
