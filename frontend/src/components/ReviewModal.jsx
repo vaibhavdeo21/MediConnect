@@ -23,6 +23,7 @@ const ReviewModal = ({ isOpen, onClose, doctorId, onSuccess }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Review Submitted!");
+      onSuccess(); // Callback to refresh parent
       onClose();
     } catch (err) {
       toast.error("Failed to submit review");
