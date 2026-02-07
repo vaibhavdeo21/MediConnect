@@ -536,14 +536,15 @@ const Dashboard = () => {
 
 const StatCard = ({ icon, title, value, color, styles, variants, isPremium, isNegative, isDark }) => {
     // FIXED: Access cardBg from styles, ensuring light mode compatibility for premium
-    const cardStyle = isPremium ? `${styles.cardBg} text-white` : `${styles.cardBg} text-slate-900`;
+    // Ensure text color contrasts correctly against the background
+    const cardStyle = `${styles.cardBg} ${isPremium ? (isDark ? 'text-white' : 'text-slate-900') : 'text-slate-900'}`;
     const iconBg = isPremium ? `bg-yellow-500/20 text-yellow-400` : `bg-gradient-to-br ${styles.statColors[color]} text-white`;
+    
     return (
         <motion.div variants={variants} whileHover={{ y: -5 }} className={`p-6 rounded-3xl shadow-lg flex items-center gap-5 ${cardStyle}`}>
             <div className={`p-4 rounded-2xl shadow-xl ${iconBg}`}>{icon}</div>
             <div className="text-left">
               <p className={`text-xs font-bold opacity-60 uppercase tracking-widest ${isPremium && !isDark ? 'text-slate-500' : ''}`}>{title}</p>
-              {/* FIXED: Text color for light mode premium */}
               <h4 className={`text-3xl font-serif font-bold mt-1 ${isNegative ? 'text-red-500' : (isPremium && !isDark ? 'text-slate-900' : '')}`}>
                 {value || 0}
               </h4>
