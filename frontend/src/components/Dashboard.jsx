@@ -23,6 +23,7 @@ const Dashboard = () => {
     cardBg: "bg-slate-900 border-yellow-500/20",
     accentText: "text-yellow-400",
     accentBg: "bg-yellow-500/20",
+    buttonPrimary: "bg-gradient-to-r from-yellow-600 to-yellow-700 text-white shadow-yellow-500/20",
     buttonSecondary: "bg-slate-800 text-yellow-50 hover:bg-slate-700",
     statColors: { blue: "from-slate-800 to-slate-900 border-yellow-500/30 text-yellow-400", amber: "from-slate-800 to-slate-900 border-yellow-500/30 text-yellow-400", emerald: "from-slate-800 to-slate-900 border-yellow-500/30 text-yellow-400", purple: "from-slate-800 to-slate-900 border-yellow-500/30 text-yellow-400" }
   } : {
