@@ -60,6 +60,7 @@ const Dashboard = () => {
   const [activities, setActivities] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [isEmergencyActive, setIsEmergencyActive] = useState(user?.is_emergency_active || false);
+  const [liveSession, setLiveSession] = useState(null);
   const [appointments, setAppointments] = useState([]); 
   
   const [rescheduleAppt, setRescheduleAppt] = useState(null);
