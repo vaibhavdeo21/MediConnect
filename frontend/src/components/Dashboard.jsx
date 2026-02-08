@@ -19,6 +19,7 @@ const Dashboard = () => {
   const styles = isPremium ? {
     pageBg: "bg-slate-950",
     textPrimary: "text-yellow-50",
+    textSecondary: "text-slate-400",
     cardBg: "bg-slate-900 border-yellow-500/20",
     accentText: "text-yellow-400",
     accentBg: "bg-yellow-500/20",
