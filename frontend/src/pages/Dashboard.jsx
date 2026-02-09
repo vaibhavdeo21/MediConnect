@@ -371,7 +371,8 @@ const Dashboard = () => {
                     <div className={`w-2 h-2 rounded-full ${isEmergencyActive ? 'bg-white animate-ping' : 'bg-slate-400'}`} /> Emergency {isEmergencyActive ? 'Online' : 'Offline'}
                 </button>
              )}
-             <div className={`px-6 py-3 rounded-2xl shadow-sm border ${isPremium ? 'bg-slate-900 border-slate-800 text-yellow-50' : 'bg-white border-slate-100 text-slate-900'}`}>
+             {/* FIXED: Current Date Card uses dynamic theme styles now */}
+             <div className={`px-6 py-3 rounded-2xl shadow-sm border transition-all ${styles.cardBg} ${styles.textPrimary}`}>
                 <p className={`text-xs font-bold uppercase tracking-widest ${styles.textSecondary}`}>Today</p>
                 <p className="text-lg font-serif font-medium">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
              </div>
@@ -535,9 +536,8 @@ const Dashboard = () => {
 };
 
 const StatCard = ({ icon, title, value, color, styles, variants, isPremium, isNegative, isDark }) => {
-    // FIXED: Access cardBg from styles, ensuring light mode compatibility for premium
-    // Ensure text color contrasts correctly against the background
-    const cardStyle = `${styles.cardBg} ${isPremium ? (isDark ? 'text-white' : 'text-slate-900') : 'text-slate-900'}`;
+    // FIXED: Use dynamic textPrimary color for full theme compatibility
+    const cardStyle = `${styles.cardBg} ${styles.textPrimary}`;
     const iconBg = isPremium ? `bg-yellow-500/20 text-yellow-400` : `bg-gradient-to-br ${styles.statColors[color]} text-white`;
     
     return (
@@ -545,7 +545,7 @@ const StatCard = ({ icon, title, value, color, styles, variants, isPremium, isNe
             <div className={`p-4 rounded-2xl shadow-xl ${iconBg}`}>{icon}</div>
             <div className="text-left">
               <p className={`text-xs font-bold opacity-60 uppercase tracking-widest ${isPremium && !isDark ? 'text-slate-500' : ''}`}>{title}</p>
-              <h4 className={`text-3xl font-serif font-bold mt-1 ${isNegative ? 'text-red-500' : (isPremium && !isDark ? 'text-slate-900' : '')}`}>
+              <h4 className={`text-3xl font-serif font-bold mt-1 ${isNegative ? 'text-red-500' : styles.textPrimary}`}>
                 {value || 0}
               </h4>
               {isNegative && (
