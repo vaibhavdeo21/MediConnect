@@ -32,7 +32,6 @@ const RescheduleModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      toast.success("Appointment Rescheduled Successfully");
       if (onUpdate) onUpdate(); // Refresh the dashboard list
       onClose();
     } catch (err) {
