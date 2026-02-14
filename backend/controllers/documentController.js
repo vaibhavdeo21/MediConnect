@@ -9,6 +9,7 @@ const uploadDocument = async (req, res) => {
     const file = req.file;
 
     if (!file) {
+      return res.status(400).json({ message: "Please upload a file" });
     }
 
     const newRecord = await pool.query(
