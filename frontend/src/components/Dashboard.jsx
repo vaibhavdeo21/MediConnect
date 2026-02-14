@@ -6,7 +6,6 @@ import { Users, Calendar, Clock, Activity, Search, ArrowUpRight, TrendingUp, Shi
 import { motion } from "framer-motion";
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } };
 
 const Dashboard = () => {
   const { user, theme } = useContext(AuthContext); // theme is 'normal' or 'premium'
