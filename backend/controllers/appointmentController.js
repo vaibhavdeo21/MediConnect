@@ -9,6 +9,7 @@ const applyEmergencyPenalties = async () => {
     const expiredAppts = await pool.query(`
       SELECT a.id, a.doctor_id, a.patient_id, d.user_id as doctor_user_id, p.user_id as patient_user_id
       FROM appointments a 
+      JOIN doctors d ON a.doctor_id = d.id 
       JOIN patients p ON a.patient_id = p.id
       WHERE a.is_emergency = true 
       AND a.status = 'Pending' 
