@@ -15,6 +15,7 @@ const Chatbot = () => {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
+  const isPremium = theme === 'premium';
   const backendUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
