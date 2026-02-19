@@ -12,7 +12,6 @@ const applyEmergencyPenalties = async () => {
       JOIN doctors d ON a.doctor_id = d.id 
       JOIN patients p ON a.patient_id = p.id
       WHERE a.is_emergency = true 
-      AND a.status = 'Pending' 
       AND a.penalty_applied = false
       AND a.created_at < NOW() - INTERVAL '10 minutes'
     `);
