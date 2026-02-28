@@ -19,7 +19,6 @@ const departments = [
   { name: 'General Surgery', icon: <Scissors />, desc: 'Minor and major surgical consultations.', symptoms: 'Hernia, appendicitis' },
   { name: 'Emergency', icon: <ShieldAlert />, desc: 'Immediate care for critical health situations.', symptoms: 'Accidents, acute trauma' },
   { name: 'Pathology', icon: <Microscope />, desc: 'Diagnostic testing and lab reports analysis.', symptoms: 'Lab result interpretation' },
-  { name: 'Physiotherapy', icon: <Activity />, desc: 'Rehabilitation and physical recovery.', symptoms: 'Post-op recovery, muscle pain' },
 ];
 
 const Departments = () => {
