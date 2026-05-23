@@ -3,16 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, ArrowRight, Loader2, KeyRound, Undo2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, Activity, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import ParticleBackground from '../components/ui/ParticleBackground';
+import GradientText from '../components/ui/GradientText';
 
 const Login = () => {
   const navigate = useNavigate();
   const { theme } = useContext(AuthContext); 
   const [loading, setLoading] = useState(false);
-  const isPremium = theme === 'premium';
-  
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const backendUrl = import.meta.env.VITE_API_URL;
 
@@ -25,9 +26,7 @@ const Login = () => {
       const res = await axios.post(`${backendUrl}/api/auth/login`, formData);
       localStorage.setItem('token', res.data.token);
       toast.success("Welcome Back!");
-      
       window.location.href = '/dashboard'; 
-
     } catch (err) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {
@@ -37,69 +36,143 @@ const Login = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      // RESTORED ORIGINAL ENDPOINT
       const res = await axios.post(`${backendUrl}/api/auth/google-login`, {
         token: credentialResponse.credential
       });
       localStorage.setItem('token', res.data.token);
       toast.success("Google Login Successful!");
-      
-      // RESTORED YOUR REDIRECT FIX
       window.location.href = '/dashboard';
-
     } catch (err) {
       toast.error("Google Auth Failed");
     }
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center py-12 px-4 font-sans transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-slate-50'}`}>
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`max-w-4xl w-full flex flex-col md:flex-row overflow-hidden rounded-[3rem] shadow-2xl border ${isPremium ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}>
-        <div className={`md:w-1/3 p-12 text-white flex flex-col justify-between relative ${isPremium ? 'bg-slate-800' : 'bg-slate-950'}`}>
-            <div className="relative z-10 text-left">
-                <KeyRound className={`h-12 w-12 mb-6 ${isPremium ? 'text-yellow-500' : 'text-cyan-400'}`} />
-                <h2 className="text-3xl font-serif font-bold leading-tight">Welcome <br/>Back.</h2>
-                <p className="mt-4 text-slate-400 text-sm leading-relaxed">Secure access to your medical workspace.</p>
-            </div>
-            <Link to="/" className="relative z-10 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors">
-               <Undo2 className="h-4 w-4" /> Home Page
-            </Link>
-        </div>
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-[var(--bg-primary)] relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0">
+        <ParticleBackground particleCount={30} color="cyan" speed={0.3} />
+        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-[120px]" />
+      </div>
 
-        <div className="md:w-2/3 p-10 md:p-12">
-          <div className="text-left mb-10">
-            <h2 className={`text-3xl font-serif font-bold ${isPremium ? 'text-white' : 'text-slate-900'}`}>Sign In</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 max-w-md w-full"
+      >
+        <div className="glass-card p-8 sm:p-10 border border-[var(--border-primary)]">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center shadow-glow-cyan">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-display font-bold text-[var(--text-primary)]">
+                Welcome Back
+              </h1>
+              <p className="text-xs text-[var(--text-muted)]">
+                Sign in to <GradientText gradient="primary">MediConnect</GradientText>
+              </p>
+            </div>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="relative group text-left">
-                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${isPremium ? 'text-slate-600 group-focus-within:text-yellow-500' : 'text-slate-400 group-focus-within:text-emerald-500'}`}>
-                    <Mail className="h-5 w-5" />
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--text-muted)]">
+                  <Mail className="h-4 w-4" />
                 </div>
-                <input name="email" type="email" placeholder="Email Address" onChange={handleChange} required 
-                  className={`block w-full pl-12 pr-4 py-4 rounded-xl transition-all font-medium border-0 outline-none ${isPremium ? 'bg-slate-800 text-white focus:ring-2 focus:ring-yellow-500/20 placeholder:text-slate-600' : 'bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-100 placeholder:text-slate-400'}`} />
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  onChange={handleChange}
+                  required
+                  className="glass-input w-full pl-11 pr-4"
+                />
+              </div>
             </div>
 
-            <div className="relative group text-left">
-                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${isPremium ? 'text-slate-600 group-focus-within:text-yellow-500' : 'text-slate-400 group-focus-within:text-emerald-500'}`}>
-                    <Lock className="h-5 w-5" />
+            {/* Password */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-[10px] font-semibold text-cyan-500 hover:text-cyan-400 transition-colors">
+                  Forgot?
+                </Link>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--text-muted)]">
+                  <Lock className="h-4 w-4" />
                 </div>
-                <input name="password" type="password" autoComplete="current-password" placeholder="Password Key" onChange={handleChange} required 
-                  className={`block w-full pl-12 pr-4 py-4 rounded-xl transition-all font-medium border-0 outline-none ${isPremium ? 'bg-slate-800 text-white focus:ring-2 focus:ring-yellow-500/20 placeholder:text-slate-600' : 'bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-100 placeholder:text-slate-400'}`} />
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  onChange={handleChange}
+                  required
+                  className="glass-input w-full pl-11 pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            
-            <Link to="/forgot-password" className="block text-right text-xs font-bold text-slate-400 hover:text-emerald-600 transition-colors">Forgot Password?</Link>
 
-            <button disabled={loading} className={`w-full py-5 rounded-2xl font-bold flex justify-center items-center gap-2 text-white ${isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400' : 'bg-slate-950 hover:bg-emerald-700'}`}>
-              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "Authorize Sign-In"} <ArrowRight className="h-5 w-5" />
-            </button>
+            {/* Submit */}
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={loading}
+              type="submit"
+              className="w-full py-4 rounded-xl font-semibold flex justify-center items-center gap-2 text-white gradient-primary shadow-glow-cyan disabled:opacity-50 transition-all"
+            >
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>Sign In <ArrowRight className="h-4 w-4" /></>
+              )}
+            </motion.button>
           </form>
 
-          <div className="my-10 flex items-center gap-4"><div className="flex-1 border-t border-slate-100"></div><span className="text-slate-400 text-sm">or</span><div className="flex-1 border-t border-slate-100"></div></div>
-
-          <div className="flex justify-center">
-            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => toast.error("Google Auth Failed")} theme={isPremium ? "filled_black" : "outline"} />
+          {/* Divider */}
+          <div className="my-8 flex items-center gap-4">
+            <div className="flex-1 h-px bg-[var(--border-primary)]" />
+            <span className="text-xs text-[var(--text-muted)] font-medium">or continue with</span>
+            <div className="flex-1 h-px bg-[var(--border-primary)]" />
           </div>
+
+          {/* Google */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error("Google Auth Failed")}
+              theme={theme === 'dark' ? "filled_black" : "outline"}
+              shape="pill"
+              size="large"
+            />
+          </div>
+
+          {/* Register Link */}
+          <p className="text-center text-sm text-[var(--text-muted)] mt-8">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-semibold text-cyan-500 hover:text-cyan-400 transition-colors">
+              Create one
+            </Link>
+          </p>
         </div>
       </motion.div>
     </div>

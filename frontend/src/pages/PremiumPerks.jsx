@@ -2,16 +2,17 @@ import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Crown, Sparkles, Gift, Copy, Check, Share2, Users } from 'lucide-react';
+import { Crown, Gift, Copy, Check, Users, Wallet, Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
+import GlassCard from '../components/ui/GlassCard';
+import AnimatedCounter from '../components/ui/AnimatedCounter';
+import GradientText from '../components/ui/GradientText';
 
 const PremiumPerks = () => {
-  const { user, theme } = useContext(AuthContext);
-  const [referralData, setReferralData] = useState({ code: '', count: 0 });
+  const { user } = useContext(AuthContext);
+  const [referralData, setReferralData] = useState({ referral_code: '', referral_count: 0 });
   const [copied, setCopied] = useState(false);
   const backendUrl = import.meta.env.VITE_API_URL;
-
-  const isDark = theme === 'dark';
 
   useEffect(() => {
     const fetchReferral = async () => {
@@ -33,57 +34,95 @@ const PremiumPerks = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const perks = [
+    { icon: Sparkles, title: 'AI Health Assistant', desc: 'Get instant AI-powered health insights and symptom analysis', gradient: 'from-cyan-500 to-blue-500' },
+    { icon: Crown, title: 'Priority Scheduling', desc: 'Skip the queue and get preferred appointment slots', gradient: 'from-amber-500 to-orange-500' },
+    { icon: Users, title: 'VIP Badge', desc: 'Doctors see your premium status for prioritized care', gradient: 'from-purple-500 to-pink-500' },
+  ];
+
   return (
-    <div className={`min-h-screen py-16 px-4 sm:px-6 lg:px-8 font-sans selection:bg-yellow-500/30 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-[var(--bg-primary)] py-8 px-4 transition-colors duration-500">
       <div className="max-w-5xl mx-auto">
-        
-        {/* --- NEW REFERRAL DASHBOARD SECTION --- */}
-        <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            className={`mt-20 p-1 rounded-[2.5rem] bg-gradient-to-br ${isDark ? 'from-yellow-500/20 via-slate-900 to-yellow-600/20' : 'from-yellow-500/30 via-white to-yellow-600/30'}`}
-        >
-            <div className={`backdrop-blur-xl p-8 md:p-12 rounded-[2.4rem] border flex flex-col md:flex-row items-center justify-between gap-12 ${isDark ? 'bg-slate-900/90 border-yellow-500/10' : 'bg-white/90 border-yellow-500/20 shadow-xl'}`}>
+        {/* Header */}
+        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-12">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 bg-amber-500/10 border border-amber-500/20 text-amber-500">
+            <Crown className="h-3 w-3 fill-amber-500" /> Premium Benefits
+          </span>
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-[var(--text-primary)]">
+            Your <GradientText gradient="accent">Elite Perks</GradientText>
+          </h1>
+        </motion.div>
+
+        {/* Perks Grid */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {perks.map((perk, i) => {
+            const Icon = perk.icon;
+            return (
+              <motion.div key={perk.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+                <GlassCard className="text-center h-full">
+                  <div className={`w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br ${perk.gradient} flex items-center justify-center text-white shadow-lg mb-4`}>
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-lg font-display font-bold text-[var(--text-primary)] mb-2">{perk.title}</h3>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">{perk.desc}</p>
+                </GlassCard>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Referral Section */}
+        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+          <div className="p-0.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-transparent to-amber-500/30">
+            <GlassCard hover={false} padding="lg" className="!rounded-[0.9rem]">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="flex-1 text-center md:text-left">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-600 text-[10px] font-black uppercase tracking-widest mb-6 border border-yellow-500/20">
-                        <Gift className="h-3 w-3" /> Exclusive Rewards
-                    </div>
-                    <h2 className={`text-3xl font-serif font-bold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Refer a Friend, <br/>Earn <span className="text-yellow-500 italic">Gold Credit.</span>
-                    </h2>
-                    <p className={`font-light text-sm max-w-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        Invite your inner circle. For every successful premium upgrade, both you and your friend receive ₹200 wallet credit.
-                    </p>
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-widest mb-4 border border-amber-500/20">
+                    <Gift className="h-3 w-3" /> Exclusive Rewards
+                  </span>
+                  <h2 className="text-2xl font-display font-bold text-[var(--text-primary)] mb-3">
+                    Refer a Friend, Earn <span className="text-amber-500">Gold Credit</span>
+                  </h2>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-md">
+                    For every successful premium upgrade, both you and your friend receive ₹200 wallet credit.
+                  </p>
                 </div>
 
                 <div className="w-full md:w-auto flex flex-col items-center gap-6">
-                    {/* The Code Box */}
-                    <div className={`border p-6 rounded-3xl w-full md:w-80 shadow-2xl ${isDark ? 'bg-slate-950 border-yellow-500/20' : 'bg-white border-yellow-200'}`}>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center mb-3">Your Unique Code</p>
-                        <div className={`flex items-center justify-between p-3 rounded-xl border group ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
-                            <span className="font-mono text-xl font-bold text-yellow-500 tracking-tighter">
-                                {referralData.referral_code || "GENERATING..."}
-                            </span>
-                            <button onClick={copyToClipboard} className="p-2 hover:bg-black/5 rounded-lg transition-colors text-slate-400 hover:text-yellow-500">
-                                {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
-                            </button>
-                        </div>
+                  {/* Code Box */}
+                  <div className="glass-card p-5 w-full md:w-80 !rounded-2xl">
+                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest text-center mb-3">Your Unique Code</p>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
+                      <span className="font-mono-code text-xl font-bold text-amber-500 tracking-wider">
+                        {referralData.referral_code || "LOADING..."}
+                      </span>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={copyToClipboard}
+                        className="p-2 rounded-lg hover:bg-amber-500/10 transition-colors text-[var(--text-muted)] hover:text-amber-500">
+                        {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5" />}
+                      </motion.button>
                     </div>
+                  </div>
 
-                    {/* Stats */}
-                    <div className="flex gap-8">
-                        <div className="text-center">
-                            <p className={`text-2xl font-serif font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{referralData.referral_count || 0}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Successful Invites</p>
-                        </div>
-                        <div className={`w-[1px] h-10 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}></div>
-                        <div className="text-center">
-                            <p className="text-2xl font-serif font-bold text-yellow-500">₹{(referralData.referral_count || 0) * 200}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Earned Credits</p>
-                        </div>
+                  {/* Stats */}
+                  <div className="flex gap-8">
+                    <div className="text-center">
+                      <p className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                        <AnimatedCounter value={referralData.referral_count || 0} />
+                      </p>
+                      <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Invites</p>
                     </div>
+                    <div className="w-px h-10 bg-[var(--border-primary)]" />
+                    <div className="text-center">
+                      <p className="text-2xl font-display font-bold text-amber-500">
+                        <AnimatedCounter value={(referralData.referral_count || 0) * 200} prefix="₹" />
+                      </p>
+                      <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Earned</p>
+                    </div>
+                  </div>
                 </div>
-            </div>
+              </div>
+            </GlassCard>
+          </div>
         </motion.div>
       </div>
     </div>

@@ -1,252 +1,319 @@
-import { useContext, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useContext } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { 
-  ShieldCheck, Video, CalendarCheck, Activity, 
-  UserPlus, ArrowRight, Heart, Brain, 
-  Stethoscope, Pill, Microscope, Sparkles, Star
-} from 'lucide-react';
 import { motion } from 'framer-motion';
+import {
+  ArrowRight, Shield, Zap, Brain, Video, Clock, Star,
+  Heart, Activity, Stethoscope, Lock, CheckCircle2,
+} from 'lucide-react';
+import ParticleBackground from '../components/ui/ParticleBackground';
+import GradientText from '../components/ui/GradientText';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+};
+
+const stagger = {
+  animate: { transition: { staggerChildren: 0.1 } },
+};
 
 const Home = () => {
-  const { user, loading, theme } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isPremium = theme === 'premium';
+  const { user } = useContext(AuthContext);
 
-  useEffect(() => {
-    // This is the "Loop Breaker" - pushes logged-in users to the Dashboard route
-    if (!loading && user && location.pathname === '/') {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, loading, navigate, location]);
+  const features = [
+    { icon: Brain, title: 'AI Health Assistant', desc: 'Intelligent symptom analysis and health recommendations powered by advanced AI.', gradient: 'from-cyan-500 to-blue-600' },
+    { icon: Video, title: 'Instant Teleconsult', desc: 'Connect with top specialists via HD video in under 60 seconds for emergencies.', gradient: 'from-purple-500 to-pink-600' },
+    { icon: Shield, title: 'Emergency SOS', desc: '10-minute guaranteed response with full doctor accountability and auto-reassignment.', gradient: 'from-red-500 to-orange-600' },
+    { icon: Clock, title: 'Smart Scheduling', desc: 'AI-optimized appointment slots with conflict detection and smart reminders.', gradient: 'from-emerald-500 to-cyan-600' },
+    { icon: Lock, title: 'Secure Records', desc: 'Military-grade encrypted medical records with blockchain-verified prescriptions.', gradient: 'from-amber-500 to-red-500' },
+    { icon: Heart, title: 'Premium Care', desc: 'Priority queuing, exclusive specialists, and personalized health tracking.', gradient: 'from-pink-500 to-purple-600' },
+  ];
 
-  if (loading || (user && location.pathname === '/')) {
-    return (
-      <div className={`min-h-screen flex flex-col items-center justify-center ${isPremium ? 'bg-slate-950' : 'bg-white'}`}>
-        <div className={`animate-spin rounded-full h-12 w-12 border-t-2 ${isPremium ? 'border-yellow-500' : 'border-emerald-500'}`}></div>
-        <p className={`mt-4 font-serif italic animate-pulse ${isPremium ? 'text-yellow-500' : 'text-emerald-500'}`}>
-          MediConnect Elite...
-        </p>
-      </div>
-    );
-  }
-
-  // --- Dynamic Theme Variables ---
-  const bgClass = isPremium ? "bg-slate-950 text-white" : "bg-white text-slate-900";
-  const sectionBg = isPremium ? "bg-slate-900/50" : "bg-slate-50";
-  const cardBg = isPremium ? "bg-slate-900 border-yellow-500/10" : "bg-white border-slate-100 shadow-sm";
-  const statBg = isPremium ? "bg-yellow-600" : "bg-emerald-600";
-  const accentText = isPremium ? "text-yellow-500" : "text-emerald-600";
+  const stats = [
+    { value: '50K+', label: 'Patients Trust Us' },
+    { value: '2,000+', label: 'Verified Doctors' },
+    { value: '<60s', label: 'Emergency Response' },
+    { value: '99.9%', label: 'Platform Uptime' },
+  ];
 
   return (
-    <div className={`min-h-screen font-sans selection:bg-emerald-100 transition-colors duration-500 ${bgClass}`}>
-      
-      {/* --- HERO SECTION --- */}
-      <section className="relative overflow-hidden bg-slate-950 pt-24 pb-32 lg:pt-40 text-left">
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] rounded-full blur-3xl opacity-30 ${isPremium ? 'bg-yellow-500/20' : 'bg-emerald-500/20'}`}></div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border text-sm font-medium mb-8 ${isPremium ? 'border-yellow-500/20 text-yellow-500' : 'border-white/10 text-emerald-300'}`}
+    <div className="min-h-screen bg-[var(--bg-primary)] overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center pt-[var(--nav-height)]">
+        {/* Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <ParticleBackground particleCount={40} color="cyan" speed={0.5} />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-[120px]" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-[120px]" />
+          <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+        </div>
+
+        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
+          <motion.div {...fadeUp} className="mb-8">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-cyan-500/20 text-sm font-medium mb-8"
             >
-                <Sparkles className="h-4 w-4" /> #1 Trusted Telemedicine Platform in India
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[var(--text-secondary)]">
+                Next-Gen Healthcare Platform — Now Live
+              </span>
             </motion.div>
 
-            <h1 className="text-5xl md:text-8xl font-serif font-bold text-white tracking-tight mb-6">
-              Exceptional Care. <br/>
-              <span className={`italic bg-clip-text text-transparent bg-gradient-to-r ${isPremium ? 'from-yellow-500 to-yellow-200' : 'from-emerald-400 to-teal-200'}`}>Expertly Delivered.</span>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display font-bold leading-[1.1] tracking-tight mb-6 text-[var(--text-primary)]">
+              Healthcare,{' '}
+              <GradientText gradient="primary" animate className="font-display">
+                Reimagined
+              </GradientText>
+              <br />
+              <span className="text-[var(--text-secondary)]">by Intelligence</span>
             </h1>
-            
-            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mb-10 font-light leading-relaxed">
-              Connect with 500+ verified specialists within minutes. Experience the future of healthcare with HD video consults and digital prescriptions.
+
+            <p className="text-lg sm:text-xl text-[var(--text-muted)] max-w-2xl mx-auto mb-10 leading-relaxed">
+              Experience the future of medical care with AI-powered diagnostics,
+              instant teleconsultations, and a fully accountable emergency system
+              that never lets you down.
             </p>
-            
-            <div className="flex flex-col sm:flex-row items-center gap-4 text-left">
-              <Link to="/login" className={`w-full sm:w-auto px-10 py-5 rounded-2xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 group ${isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400 shadow-yellow-500/20' : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-500/25'}`}>
-                Consult a Doctor Now <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to={user ? '/dashboard' : '/register'}>
+                <motion.button
+                  whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(6, 182, 212, 0.3)' }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-4 rounded-2xl text-base font-semibold gradient-primary text-white shadow-glow-cyan flex items-center gap-3 group"
+                >
+                  {user ? 'Go to Dashboard' : 'Start Free — No Card Needed'}
+                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
               </Link>
-              <Link to="/register?role=doctor" className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-white border border-white/10 px-10 py-5 rounded-2xl font-bold transition backdrop-blur-sm text-center">
-                Join as a Specialist
+              <Link to="/doctors">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-4 rounded-2xl text-base font-semibold glass border border-[var(--border-primary)] text-[var(--text-primary)] hover:border-cyan-500/30 flex items-center gap-3"
+                >
+                  <Stethoscope className="h-5 w-5 text-cyan-500" />
+                  Browse Doctors
+                </motion.button>
               </Link>
             </div>
-        </div>
-      </section>
+          </motion.div>
 
-      {/* --- STATISTICS BAR --- */}
-      <section className={`${statBg} py-12 transition-colors duration-500`}>
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { label: "Verified Doctors", val: "500+" },
-            { label: "Successful Consults", val: "15k+" },
-            { label: "Patient Satisfaction", val: "4.9/5" },
-            { label: "Response Time", val: "15 min" }
-          ].map((item, i) => (
-            <div key={i} className="text-center">
-              <div className="text-3xl md:text-4xl font-serif font-bold text-white mb-1">{item.val}</div>
-              <div className={`text-xs uppercase tracking-widest font-bold ${isPremium ? 'text-yellow-100' : 'text-emerald-100'}`}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* --- SPECIALTY GRID --- */}
-      <section className={`py-24 px-4 transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className={`text-3xl md:text-5xl font-serif font-bold mb-4 ${isPremium ? 'text-white' : 'text-slate-900'}`}>Consult Top Specialists</h2>
-            <p className={isPremium ? 'text-slate-400' : 'text-slate-500'}>World-class expertise available at your fingertips.</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            {[
-              { name: 'Cardiology', icon: <Heart /> },
-              { name: 'Neurology', icon: <Brain /> },
-              { name: 'Dermatology', icon: <Stethoscope /> },
-              { name: 'Pediatrics', icon: <Activity /> },
-              { name: 'General Medicine', icon: <Microscope /> },
-              { name: 'Psychiatry', icon: <Pill /> }
-            ].map((spec) => (
-              <div key={spec.name} className={`p-8 border rounded-[2rem] text-center transition-all cursor-pointer group ${cardBg} ${isPremium ? 'hover:border-yellow-500 hover:shadow-yellow-500/10' : 'hover:border-emerald-500 hover:shadow-2xl'}`}>
-                <div className={`w-14 h-14 rounded-2xl mx-auto mb-6 flex items-center justify-center transition-all ${isPremium ? 'bg-slate-800 text-yellow-500 group-hover:bg-yellow-500 group-hover:text-slate-950' : 'bg-slate-50 text-slate-400 group-hover:bg-emerald-500 group-hover:text-white'}`}>
-                  {spec.icon}
-                </div>
-                <span className={`text-sm font-bold ${isPremium ? 'text-slate-300' : 'text-slate-800'}`}>{spec.name}</span>
-              </div>
+          {/* Stats Bar */}
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4"
+          >
+            {stats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 + i * 0.1 }}
+                className="glass-card p-6 text-center"
+              >
+                <p className="text-2xl sm:text-3xl font-display font-bold gradient-text-primary">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">
+                  {stat.label}
+                </p>
+              </motion.div>
             ))}
+          </motion.div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        >
+          <div className="w-6 h-10 rounded-full border-2 border-[var(--text-muted)]/30 flex items-start justify-center p-1.5">
+            <div className="w-1.5 h-3 rounded-full bg-cyan-500 animate-pulse" />
           </div>
+        </motion.div>
+      </section>
+
+      {/* Features Section */}
+      <section className="relative py-24 px-4">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500 mb-4 block">
+              Platform Capabilities
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-display font-bold text-[var(--text-primary)] mb-4">
+              Everything You Need, <GradientText gradient="primary">Nothing You Don't</GradientText>
+            </h2>
+            <p className="text-[var(--text-muted)] max-w-xl mx-auto">
+              Built for patients who demand excellence and doctors who deliver it.
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={stagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {features.map((feature, i) => {
+              const Icon = feature.icon;
+              return (
+                <motion.div
+                  key={feature.title}
+                  variants={fadeUp}
+                  whileHover={{ y: -6 }}
+                  className="glass-card p-8 group cursor-default"
+                >
+                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="h-7 w-7 text-white" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-[var(--text-primary)] mb-3">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                    {feature.desc}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
         </div>
       </section>
 
-      {/* --- HOW IT WORKS --- */}
-      <section className={`py-24 transition-colors duration-500 ${sectionBg}`}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="text-left">
-              <h2 className={`text-4xl font-serif font-bold mb-8 leading-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>Your Health Journey, <br/>Simplified in 3 Steps.</h2>
-              <div className="space-y-12">
-                <Step num="01" title="Find your Doctor" desc="Search by department or symptoms. View doctor profiles, ratings, and availability." isPremium={isPremium} />
-                <Step num="02" title="Book Instant Slot" desc="Schedule a video call or clinic visit. Secure your spot with bank-grade payment encryption." isPremium={isPremium} />
-                <Step num="03" title="Digital Consultation" desc="Receive your prescription and records instantly in your secure dashboard." isPremium={isPremium} />
-              </div>
-            </div>
-            <div className="relative">
-              <div className={`aspect-square rounded-[3rem] border flex items-center justify-center p-8 ${isPremium ? 'bg-yellow-500/5 border-yellow-500/10' : 'bg-emerald-600/5 border-emerald-100'}`}>
-                 <Video className={`h-32 w-32 ${isPremium ? 'text-yellow-500/20' : 'text-emerald-200'}`} />
-                 <div className="absolute top-10 right-10 bg-white p-4 rounded-2xl shadow-xl animate-bounce">
-                    <div className="flex gap-2 items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] ${isPremium ? 'bg-yellow-500' : 'bg-emerald-500'}`}>DR</div>
-                      <div className="text-[10px] font-bold text-slate-900">Incoming Call...</div>
+      {/* Emergency Section */}
+      <section className="relative py-24 px-4">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="glass-card p-12 lg:p-16 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/5 rounded-full blur-[100px]" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[80px]" />
+            
+            <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-xs font-bold uppercase tracking-wider mb-6">
+                  <Zap className="h-3 w-3 fill-red-500" />
+                  Emergency Protocol
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-display font-bold text-[var(--text-primary)] mb-4">
+                  60-Second Emergency <GradientText gradient="accent">Response</GradientText>
+                </h2>
+                <p className="text-[var(--text-muted)] mb-8 leading-relaxed">
+                  Our SOS system guarantees a doctor response within 10 minutes.
+                  If they don't respond, automated penalties are applied and your request
+                  is instantly reassigned to the next available specialist.
+                </p>
+                <div className="space-y-4">
+                  {[
+                    'Automatic 10-minute timeout enforcement',
+                    'Penalty system: ₹1000 deduction for missed emergencies',
+                    'Smart auto-reassignment to next available doctor',
+                    'Full audit trail with real-time tracking',
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                      <span className="text-sm text-[var(--text-secondary)]">{item}</span>
                     </div>
-                 </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <motion.div
+                  animate={{ y: [0, -12, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-72 h-72 rounded-3xl gradient-emergency p-1 shadow-glow-red"
+                >
+                  <div className="w-full h-full rounded-[1.4rem] bg-[var(--bg-primary)] flex flex-col items-center justify-center gap-4 p-8">
+                    <div className="w-20 h-20 rounded-2xl bg-red-500/10 flex items-center justify-center animate-emergency">
+                      <Zap className="h-10 w-10 text-red-500 fill-red-500" />
+                    </div>
+                    <p className="text-2xl font-display font-bold text-red-500">SOS Active</p>
+                    <p className="text-xs text-[var(--text-muted)] text-center">
+                      Connecting to nearest specialist...
+                    </p>
+                    <div className="w-full h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                      <motion.div
+                        animate={{ width: ['0%', '100%'] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* --- TESTIMONIALS SECTION --- */}
-      <section className={`py-24 overflow-hidden text-left transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 text-left">
-            <div className="max-w-xl">
-              <h2 className={`text-3xl md:text-5xl font-serif font-bold mb-6 ${isPremium ? 'text-white' : 'text-slate-900'}`}>Voices of Trust</h2>
-              <p className={isPremium ? 'text-slate-400' : 'text-slate-500'}>Don't just take our word for it. Join thousands of patients who have found a better way to manage their health.</p>
+      {/* CTA Section */}
+      <section className="relative py-24 px-4 mb-12">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-display font-bold text-[var(--text-primary)] mb-4">
+              Ready to Experience <GradientText gradient="primary" animate>The Future?</GradientText>
+            </h2>
+            <p className="text-[var(--text-muted)] mb-10 max-w-xl mx-auto">
+              Join thousands of patients and doctors already using MediConnect
+              for smarter, faster, and more accountable healthcare.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to={user ? '/dashboard' : '/register'}>
+                <motion.button
+                  whileHover={{ scale: 1.03, boxShadow: '0 0 40px rgba(6, 182, 212, 0.3)' }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-10 py-5 rounded-2xl text-lg font-semibold gradient-primary text-white shadow-glow-cyan flex items-center gap-3"
+                >
+                  {user ? 'Dashboard' : 'Get Started Free'}
+                  <ArrowRight className="h-5 w-5" />
+                </motion.button>
+              </Link>
             </div>
-            <div className={`px-6 py-3 border rounded-full text-sm font-bold ${isPremium ? 'bg-slate-900 border-yellow-500/20 text-yellow-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
-              Average 4.9/5 Rating
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-[var(--border-primary)] py-12 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+              <Activity className="h-4 w-4 text-white" />
             </div>
+            <span className="text-sm font-display font-bold text-[var(--text-primary)]">
+              Medi<span className="gradient-text-primary">Connect</span>
+            </span>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-8 text-left">
-            <TestimonialCard 
-              quote="The specialist was extremely thorough. I got my cardiology consult and prescription within 20 minutes without leaving my office."
-              author="Arjun Mehta" role="Premium Member" initials="AM" color={isPremium ? "bg-yellow-500/10 text-yellow-500" : "bg-emerald-100 text-emerald-700"} isPremium={isPremium}
-            />
-            <TestimonialCard 
-              quote="The Elite theme and AI health assistant are game changers. It feels like having a private doctor in my pocket 24/7."
-              author="Priya Sharma" role="Elite Member" initials="PS" color={isPremium ? "bg-yellow-500/10 text-yellow-500" : "bg-yellow-100 text-yellow-700"} isPremium={isPremium}
-            />
-            <TestimonialCard 
-              quote="As a doctor, the integrated EHR and wallet system make managing my practice incredibly simple. Best platform for specialists."
-              author="Dr. Vikram Rao" role="Verified Surgeon" initials="VR" color={isPremium ? "bg-yellow-500/10 text-yellow-500" : "bg-blue-100 text-blue-700"} isPremium={isPremium}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* --- CALL TO ACTION --- */}
-      <section className="py-24 bg-slate-950 relative overflow-hidden text-center">
-        <div className={`absolute inset-0 opacity-50 ${isPremium ? 'bg-yellow-500/5' : 'bg-emerald-500/5'}`}></div>
-        <div className="max-w-4xl mx-auto px-4 relative z-10">
-          <h2 className={`text-4xl md:text-5xl font-serif font-bold mb-8 italic text-transparent bg-clip-text bg-gradient-to-r ${isPremium ? 'from-yellow-100 to-yellow-400' : 'from-emerald-100 to-emerald-400'}`}>Better Health Starts with a Single Click.</h2>
-          <Link to="/register" className={`inline-block px-12 py-5 rounded-2xl font-bold transition-all shadow-2xl ${isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400' : 'bg-white text-slate-950 hover:bg-emerald-50'}`}>
-            Create Your Free Account
-          </Link>
-          <p className="mt-6 text-slate-500 text-sm">Join 15,000+ Indians who trust MediConnect for their wellness.</p>
-        </div>
-      </section>
-
-      {/* --- FOOTER --- */}
-      <footer className={`py-20 border-t text-left transition-colors duration-500 ${isPremium ? 'bg-slate-950 border-yellow-500/10' : 'bg-white border-slate-100'}`}>
-        <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-4 gap-12 text-left">
-          <div className="col-span-1 md:col-span-2">
-            <div className={`text-3xl font-serif font-bold mb-6 ${isPremium ? 'text-white' : 'text-slate-950'}`}>MediConnect<span className={isPremium ? 'text-yellow-500' : 'text-emerald-600'}>.</span></div>
-            <p className="text-slate-500 max-w-sm mb-8">Revolutionizing healthcare accessibility in India through premium virtual care and AI-driven assistance.</p>
-          </div>
-          <div>
-            <h4 className={`font-bold mb-6 ${isPremium ? 'text-white' : 'text-slate-900'}`}>Explore</h4>
-            <ul className="space-y-4 text-slate-500 text-sm">
-              <li><Link to="/doctors" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Find Doctors</Link></li>
-              <li><Link to="/register?role=doctor" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Join as Doctor</Link></li>
-              <li><Link to="/subscribe" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Elite Premium</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className={`font-bold mb-6 ${isPremium ? 'text-white' : 'text-slate-900'}`}>Support</h4>
-            <ul className="space-y-4 text-slate-500 text-sm">
-              <li><Link to="/privacy" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Privacy Policy</Link></li>
-              <li><Link to="/terms" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Terms of Service</Link></li>
-              <li><a href="mailto:support@mediconnect.com" className={isPremium ? 'hover:text-yellow-500' : 'hover:text-emerald-600'}>Contact Us</a></li>
-            </ul>
+          <div className="flex items-center gap-6 text-xs text-[var(--text-muted)]">
+            <Link to="/departments" className="hover:text-[var(--text-primary)] transition-colors">Departments</Link>
+            <Link to="/doctors" className="hover:text-[var(--text-primary)] transition-colors">Doctors</Link>
+            <span>© 2026 MediConnect. All rights reserved.</span>
           </div>
         </div>
       </footer>
     </div>
   );
 };
-
-// Sub-components
-const Step = ({ num, title, desc, isPremium }) => (
-  <div className="flex gap-6 text-left">
-    <div className={`text-4xl font-serif font-bold ${isPremium ? 'text-yellow-500/20' : 'text-emerald-100'}`}>{num}</div>
-    <div className="text-left">
-      <h3 className={`text-xl font-bold mb-2 ${isPremium ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
-      <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
-    </div>
-  </div>
-);
-
-const TestimonialCard = ({ quote, author, role, initials, color, isPremium }) => (
-  <div className={`p-10 rounded-[2.5rem] border relative group hover:shadow-2xl transition-all duration-500 text-left ${isPremium ? 'bg-slate-900 border-yellow-500/10' : 'bg-white border-slate-100 shadow-sm'}`}>
-    <div className="flex gap-1 mb-6">
-      {[...Array(5)].map((_, i) => (
-        <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-      ))}
-    </div>
-    <p className={`italic leading-relaxed mb-8 text-lg ${isPremium ? 'text-slate-300' : 'text-slate-700'}`}>"{quote}"</p>
-    <div className="flex items-center gap-4 text-left">
-      <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold ${color}`}>
-        {initials}
-      </div>
-      <div className="text-left">
-        <div className={`font-bold ${isPremium ? 'text-white' : 'text-slate-900'}`}>{author}</div>
-        <div className={`text-xs uppercase tracking-widest font-bold ${isPremium ? 'text-yellow-500/50' : 'text-slate-400'}`}>{role}</div>
-      </div>
-    </div>
-  </div>
-);
 
 export default Home;

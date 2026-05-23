@@ -4,111 +4,79 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { 
   Heart, Brain, Stethoscope, Pill, Microscope, Activity, 
-  Baby, Eye, Bone, Scissors, Zap, ShieldAlert, ArrowRight, Sparkles
+  Baby, Eye, Bone, Scissors, Zap, ShieldAlert, ArrowRight
 } from 'lucide-react';
+import GradientText from '../components/ui/GradientText';
 
 const departments = [
-  { name: 'Cardiology', icon: <Heart />, desc: 'Heart health, hypertension, and vascular diseases.', symptoms: 'Chest pain, palpitations' },
-  { name: 'Neurology', icon: <Brain />, desc: 'Brain, spinal cord, and nervous system disorders.', symptoms: 'Headaches, numbness, seizures' },
-  { name: 'Dermatology', icon: <Stethoscope />, desc: 'Skin, hair, and nail treatments.', symptoms: 'Rashes, acne, hair fall' },
-  { name: 'Pediatrics', icon: <Baby />, desc: 'Child healthcare and developmental wellness.', symptoms: 'Child fever, vaccinations' },
-  { name: 'Psychiatry', icon: <Pill />, desc: 'Mental health, anxiety, and behavioral therapy.', symptoms: 'Stress, sleep issues, mood swings' },
-  { name: 'Orthopedics', icon: <Bone />, desc: 'Bone, joint, and musculoskeletal care.', symptoms: 'Fractures, back pain, arthritis' },
-  { name: 'Ophthalmology', icon: <Eye />, desc: 'Comprehensive eye care and vision correction.', symptoms: 'Blurry vision, eye irritation' },
-  { name: 'Gastroenterology', icon: <Zap />, desc: 'Digestive system and liver health.', symptoms: 'Acidity, bloating, stomach pain' },
-  { name: 'General Surgery', icon: <Scissors />, desc: 'Minor and major surgical consultations.', symptoms: 'Hernia, appendicitis' },
-  { name: 'Emergency', icon: <ShieldAlert />, desc: 'Immediate care for critical health situations.', symptoms: 'Accidents, acute trauma' },
-  { name: 'Pathology', icon: <Microscope />, desc: 'Diagnostic testing and lab reports analysis.', symptoms: 'Lab result interpretation' },
-  { name: 'Physiotherapy', icon: <Activity />, desc: 'Rehabilitation and physical recovery.', symptoms: 'Post-op recovery, muscle pain' },
+  { name: 'Cardiology', icon: Heart, desc: 'Heart health, hypertension, and vascular diseases.', symptoms: 'Chest pain, palpitations', gradient: 'from-red-500 to-pink-500' },
+  { name: 'Neurology', icon: Brain, desc: 'Brain, spinal cord, and nervous system disorders.', symptoms: 'Headaches, numbness, seizures', gradient: 'from-purple-500 to-indigo-500' },
+  { name: 'Dermatology', icon: Stethoscope, desc: 'Skin, hair, and nail treatments.', symptoms: 'Rashes, acne, hair fall', gradient: 'from-amber-500 to-orange-500' },
+  { name: 'Pediatrics', icon: Baby, desc: 'Child healthcare and developmental wellness.', symptoms: 'Child fever, vaccinations', gradient: 'from-cyan-500 to-blue-500' },
+  { name: 'Psychiatry', icon: Pill, desc: 'Mental health, anxiety, and behavioral therapy.', symptoms: 'Stress, sleep issues, mood swings', gradient: 'from-violet-500 to-purple-500' },
+  { name: 'Orthopedics', icon: Bone, desc: 'Bone, joint, and musculoskeletal care.', symptoms: 'Fractures, back pain, arthritis', gradient: 'from-emerald-500 to-teal-500' },
+  { name: 'Ophthalmology', icon: Eye, desc: 'Comprehensive eye care and vision correction.', symptoms: 'Blurry vision, eye irritation', gradient: 'from-blue-500 to-cyan-500' },
+  { name: 'Gastroenterology', icon: Zap, desc: 'Digestive system and liver health.', symptoms: 'Acidity, bloating, stomach pain', gradient: 'from-yellow-500 to-amber-500' },
+  { name: 'General Surgery', icon: Scissors, desc: 'Minor and major surgical consultations.', symptoms: 'Hernia, appendicitis', gradient: 'from-slate-500 to-zinc-500' },
+  { name: 'Emergency', icon: ShieldAlert, desc: 'Immediate care for critical health situations.', symptoms: 'Accidents, acute trauma', gradient: 'from-red-600 to-red-500' },
+  { name: 'Pathology', icon: Microscope, desc: 'Diagnostic testing and lab reports analysis.', symptoms: 'Lab result interpretation', gradient: 'from-teal-500 to-emerald-500' },
+  { name: 'Physiotherapy', icon: Activity, desc: 'Rehabilitation and physical recovery.', symptoms: 'Post-op recovery, muscle pain', gradient: 'from-green-500 to-emerald-500' },
 ];
 
+const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
+
 const Departments = () => {
-  const { user, theme } = useContext(AuthContext);
-  // FIXED Logic: Tier vs Visual Mode
-  const isPremium = user?.is_premium;
-  const isDark = theme === 'dark';
-
-  // --- Dynamic Theme Classes ---
-  // FIXED: Standard Patient now uses Emerald Green
-  const bgClass = isDark ? "bg-slate-950" : "bg-slate-50";
-  const cardClass = isPremium 
-    ? (isDark ? "bg-slate-900 border-yellow-500/10 shadow-2xl hover:border-yellow-500/40" : "bg-white border-yellow-100 shadow-xl shadow-yellow-900/5 hover:border-yellow-400") 
-    : (isDark ? "bg-slate-900 border-emerald-500/10 shadow-2xl hover:border-emerald-500/40" : "bg-white border-emerald-100 shadow-sm hover:border-emerald-500 hover:shadow-xl");
-  const textMain = isDark ? "text-white" : "text-slate-900";
-  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
-  const accentColor = isPremium ? (isDark ? "text-yellow-500" : "text-yellow-700") : "text-emerald-600";
-  const iconBg = isDark ? "bg-slate-800" : "bg-slate-50";
-
   return (
-    <div className={`min-h-screen pt-24 pb-20 px-4 transition-colors duration-500 ${bgClass}`}>
+    <div className="min-h-screen bg-[var(--bg-primary)] py-8 px-4 transition-colors duration-500">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          {isPremium && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest mb-4 border animate-pulse 
-                ${isDark ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}
-            >
-              <Sparkles className="h-3 w-3" /> Elite Access
-            </motion.div>
-          )}
-          <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`text-4xl md:text-6xl font-serif font-bold mb-6 ${textMain}`}
-          >
-            Medical Departments
-          </motion.h1>
-          <p className={`max-w-2xl mx-auto text-lg ${textMuted}`}>
-            Choose a specialty to find the right expert for your health needs. 
-            All our doctors are verified and board-certified.
+        {/* Header */}
+        <motion.div {...fadeUp} className="text-center mb-14">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 glass border border-cyan-500/20 text-cyan-500">
+            <Stethoscope className="h-3 w-3" /> Specializations
+          </span>
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 text-[var(--text-primary)]">
+            Medical <GradientText gradient="primary">Departments</GradientText>
+          </h1>
+          <p className="max-w-2xl mx-auto text-[var(--text-muted)]">
+            Choose a specialty to find the right expert for your health needs. All our doctors are verified and board-certified.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {departments.map((dept, index) => (
-            <motion.div
-              key={dept.name}
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
-              viewport={{ once: true }}
-              className={`p-8 rounded-[2.5rem] border transition-all group relative overflow-hidden text-left ${cardClass}`}
-            >
-              {/* Subtle Premium Glow Effect */}
-              {isPremium && (
-                <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl group-hover:opacity-100 transition-opacity opacity-40 
-                  ${isDark ? 'bg-yellow-500/10' : 'bg-yellow-400/20'}`}></div>
-              )}
-
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors mb-6 ${iconBg} 
-                ${isPremium 
-                  ? (isDark ? 'text-yellow-500 group-hover:bg-yellow-500 group-hover:text-slate-950' : 'text-yellow-600 group-hover:bg-yellow-500 group-hover:text-white') 
-                  : (isDark ? 'text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white' : 'text-slate-400 group-hover:bg-emerald-600 group-hover:text-white')}`}>
-                {dept.icon}
-              </div>
-              
-              <h3 className={`text-2xl font-serif font-bold mb-3 ${textMain}`}>{dept.name}</h3>
-              <p className={`text-sm mb-4 leading-relaxed ${textMuted}`}>{dept.desc}</p>
-              
-              <div className={`p-4 rounded-xl mb-6 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
-                <span className={`text-[10px] uppercase font-bold tracking-widest block mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Common Symptoms
-                </span>
-                <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  {dept.symptoms}
-                </p>
-              </div>
-
-              <Link 
-                to={`/doctors?specialty=${dept.name}`}
-                className={`inline-flex items-center gap-2 font-bold text-sm group-hover:gap-4 transition-all ${accentColor}`}
+        {/* Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {departments.map((dept, index) => {
+            const Icon = dept.icon;
+            return (
+              <motion.div
+                key={dept.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -6 }}
+                className="glass-card p-7 group cursor-default"
               >
-                Find Specialists <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          ))}
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${dept.gradient} flex items-center justify-center mb-5 text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <Icon className="h-7 w-7" />
+                </div>
+                
+                <h3 className="text-xl font-display font-bold mb-2 text-[var(--text-primary)]">{dept.name}</h3>
+                <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">{dept.desc}</p>
+                
+                <div className="p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] mb-5">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-muted)] block mb-1">Common Symptoms</span>
+                  <p className="text-xs font-medium text-[var(--text-secondary)]">{dept.symptoms}</p>
+                </div>
+
+                <Link 
+                  to={`/doctors?specialty=${dept.name}`}
+                  className="inline-flex items-center gap-2 font-semibold text-sm text-cyan-500 group-hover:gap-3 transition-all"
+                >
+                  Find Specialists <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </div>

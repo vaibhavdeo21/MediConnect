@@ -1,15 +1,13 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { X, Calendar, Clock, CheckCircle, AlertCircle, Sparkles, Zap } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertCircle, Zap, Loader2, IndianRupee, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { motion, AnimatePresence } from 'framer-motion';
+import Modal from './ui/Modal';
+import { motion } from 'framer-motion';
 
 const BookingModal = ({ isOpen, onClose, doctor }) => {
-  const { theme } = useContext(AuthContext);
-  const isPremium = theme === 'premium';
-  const isDark = theme === 'dark';
-  
+  const { user } = useContext(AuthContext);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,38 +17,23 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
   const daysMap = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
 
   const generateTimeSlots = (availabilityString) => {
-    const defaultStart = "09:00 AM";
-    const defaultEnd = "05:00 PM";
-    let startStr = defaultStart;
-    let endStr = defaultEnd;
-
+    let startStr = "09:00 AM", endStr = "05:00 PM";
     if (availabilityString && availabilityString.includes(',')) {
       const timePart = availabilityString.split(',')[1].trim();
       const times = timePart.split('-');
-      if (times.length === 2) {
-        startStr = times[0].trim();
-        endStr = times[1].trim();
-      }
+      if (times.length === 2) { startStr = times[0].trim(); endStr = times[1].trim(); }
     }
-
     const parseToMinutes = (timeStr) => {
-      const [time, modifier] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
+      const [t, modifier] = timeStr.split(' ');
+      let [hours, minutes] = t.split(':').map(Number);
       if (modifier === 'PM' && hours !== 12) hours += 12;
       if (modifier === 'AM' && hours === 12) hours = 0;
       return hours * 60 + minutes;
     };
-
-    const startMinutes = parseToMinutes(startStr);
-    const endMinutes = parseToMinutes(endStr);
     const slots = [];
-    for (let m = startMinutes; m < endMinutes; m += 15) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const hour12 = h % 12 || 12;
-      const minStr = min < 10 ? '0' + min : min;
-      slots.push(`${hour12}:${minStr} ${ampm}`);
+    for (let m = parseToMinutes(startStr); m < parseToMinutes(endStr); m += 15) {
+      const h = Math.floor(m / 60), min = m % 60;
+      slots.push(`${h % 12 || 12}:${min < 10 ? '0' + min : min} ${h >= 12 ? 'PM' : 'AM'}`);
     }
     return slots;
   };
@@ -59,17 +42,12 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
     if (!doctor.availability || !selectedDate) return true;
     const dayPart = doctor.availability.split(',')[0].trim();
     const dayRange = dayPart.split('-').map(d => d.trim());
-
     if (dayRange.length === 2) {
-      const startDayNum = daysMap[dayRange[0]];
-      const endDayNum = daysMap[dayRange[1]];
+      const startDayNum = daysMap[dayRange[0]], endDayNum = daysMap[dayRange[1]];
       const selectedDayNum = new Date(selectedDate).getDay();
-
-      if (startDayNum <= endDayNum) {
-        return selectedDayNum >= startDayNum && selectedDayNum <= endDayNum;
-      } else {
-        return selectedDayNum >= startDayNum || selectedDayNum <= endDayNum;
-      }
+      return startDayNum <= endDayNum
+        ? selectedDayNum >= startDayNum && selectedDayNum <= endDayNum
+        : selectedDayNum >= startDayNum || selectedDayNum <= endDayNum;
     }
     return true;
   };
@@ -86,145 +64,119 @@ const BookingModal = ({ isOpen, onClose, doctor }) => {
     const selectedDate = e.target.value;
     setDate(selectedDate);
     if (!checkDayAvailability(selectedDate)) {
-      toast.error(`Doctor is only available ${doctor.availability.split(',')[0]}`, {
-        icon: <AlertCircle className="text-red-500" />
-      });
+      toast.error(`Doctor is only available ${doctor.availability.split(',')[0]}`);
     }
   };
 
   const handleBooking = async (e) => {
     e.preventDefault();
-    
-    // Bypass validation for emergency bookings
     if (!doctor.is_emergency && !checkDayAvailability(date)) {
       return toast.error("Please select a day the doctor is available.");
     }
-
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // FIXED: Instant Booking Payload for Emergency
       const payload = doctor.is_emergency 
-        ? { 
-            doctorId: doctor.id, 
-            isEmergency: true, 
-            appointmentDate: new Date().toISOString().split('T')[0], 
-            appointmentTime: 'IMMEDIATE',
-            doctorName: doctor.full_name 
-          }
-        : { 
-            doctorId: doctor.id, 
-            appointmentDate: date, 
-            appointmentTime: time, 
-            doctorName: doctor.full_name 
-          };
+        ? { doctorId: doctor.id, isEmergency: true, appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: 'IMMEDIATE', doctorName: doctor.full_name }
+        : { doctorId: doctor.id, appointmentDate: date, appointmentTime: time, doctorName: doctor.full_name };
 
-      await axios.post(
-        `${backendUrl}/api/appointments/book`, 
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success(doctor.is_emergency ? "Emergency SOS Dispatched!" : "Elite Session Booked!");
+      await axios.post(`${backendUrl}/api/appointments/book`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(doctor.is_emergency ? "Emergency SOS Dispatched!" : "Session Booked!");
       onClose();
     } catch (err) {
-      toast.error("Booking Failed.");
+      toast.error(err.response?.data?.error || "Booking Failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" 
-          />
-          
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className={`relative w-full max-w-md rounded-[2.5rem] overflow-hidden border transition-all ${isPremium ? 'bg-slate-900 border-yellow-500/20 text-white' : 'bg-white border-slate-100 text-slate-900 shadow-2xl'}`}
-          >
-            {/* Modal Header - Red for Emergency */}
-            <div className={`px-8 py-6 flex justify-between items-center ${doctor.is_emergency ? 'bg-red-600 text-white' : isPremium ? 'bg-slate-800/50 border-b border-white/5' : 'bg-slate-900 text-white'}`}>
-              <div className="text-left">
-                {doctor.is_emergency ? (
-                    <div className="inline-flex items-center gap-1 text-white text-[9px] font-black uppercase tracking-tighter mb-1">
-                        <Zap className="h-2 w-2 fill-white" /> Instant Dispatch
-                    </div>
-                ) : isPremium && (
-                    <div className="inline-flex items-center gap-1 text-yellow-500 text-[9px] font-black uppercase tracking-tighter mb-1">
-                        <Sparkles className="h-2 w-2" /> Elite Booking
-                    </div>
-                )}
-                <h3 className="text-xl font-serif font-bold italic">{doctor.is_emergency ? 'Emergency SOS' : 'Book Session'}</h3>
-                <p className="text-xs opacity-70">Dr. {doctor.full_name}</p>
-              </div>
-              <button onClick={onClose} className="hover:bg-white/10 p-2 rounded-full transition"><X className="h-5 w-5" /></button>
+    <Modal isOpen={isOpen} onClose={onClose} title={doctor?.is_emergency ? 'Emergency SOS' : 'Book Session'} size="md">
+      {doctor && (
+        <form onSubmit={handleBooking} className="space-y-5">
+          {/* Doctor Info */}
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-display font-bold ${
+              doctor.is_emergency ? 'bg-red-500/10 text-red-500' : 'gradient-primary text-white'
+            }`}>
+              {doctor.full_name?.charAt(0)}
             </div>
+            <div>
+              <h4 className="font-display font-bold text-[var(--text-primary)]">Dr. {doctor.full_name}</h4>
+              <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                <span>{doctor.specialization}</span>
+                <span className="flex items-center gap-1"><IndianRupee className="h-3 w-3" />₹{doctor.consultation_fee}</span>
+              </div>
+            </div>
+          </div>
 
-            <form onSubmit={handleBooking} className="p-8 space-y-6">
-              {doctor.is_emergency ? (
-                // EMERGENCY INSTANT UI
-                <div className={`p-6 rounded-3xl border-2 border-dashed ${isDark ? 'bg-red-500/5 border-red-500/20' : 'bg-red-50 border-red-200'}`}>
-                    <div className="flex items-center gap-4 text-red-600 mb-4">
-                        <div className="p-3 bg-red-600 rounded-2xl text-white animate-pulse"><Zap className="h-6 w-6 fill-white" /></div>
-                        <p className="font-bold text-lg">Live Response Mode</p>
-                    </div>
-                    <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        By clicking below, a priority alert is sent to Dr. {doctor.full_name.split(' ')[0]}. You will receive an instant "Join Call" link on your dashboard as soon as they accept.
-                    </p>
+          {doctor.is_emergency ? (
+            /* Emergency UI */
+            <div className="p-5 rounded-xl border-2 border-dashed border-red-500/30 bg-red-500/5">
+              <div className="flex items-center gap-3 text-red-500 mb-3">
+                <div className="p-2.5 bg-red-500 rounded-xl text-white animate-pulse">
+                  <Zap className="h-5 w-5 fill-white" />
                 </div>
-              ) : (
-                // STANDARD BOOKING UI
-                <>
-                  <div className={`p-4 rounded-2xl flex items-center gap-3 border ${isPremium ? 'bg-slate-950 border-yellow-500/10 text-yellow-500' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
-                    <Clock className="h-4 w-4" />
-                    <span className="text-[11px] font-bold uppercase tracking-tight">Hours: {doctor.availability}</span>
-                  </div>
+                <p className="font-display font-bold text-lg">Live Response Mode</p>
+              </div>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                A priority alert is sent to Dr. {doctor.full_name?.split(' ')[0]}. You'll receive a "Join Call" link on your dashboard when accepted.
+              </p>
+            </div>
+          ) : (
+            /* Standard Booking UI */
+            <>
+              <div className="p-3 rounded-xl flex items-center gap-2 bg-cyan-500/5 border border-cyan-500/10 text-cyan-500 text-xs font-bold">
+                <Clock className="h-3.5 w-3.5" />
+                Hours: {doctor.availability || 'Flexible'}
+              </div>
 
-                  <div className="text-left">
-                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Select Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                      <input type="date" min={new Date().toISOString().split('T')[0]} value={date} onChange={handleDateChange} required
-                        className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border transition-all ${isPremium ? 'bg-slate-800 border-white/5' : 'bg-slate-50 border-slate-200'}`} />
-                    </div>
-                  </div>
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Select Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input type="date" min={new Date().toISOString().split('T')[0]} value={date} onChange={handleDateChange} required
+                    className="glass-input w-full pl-11 pr-4" />
+                </div>
+              </div>
 
-                  <div className="text-left">
-                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Available Slots</label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                      <select value={time} onChange={(e) => setTime(e.target.value)} required
-                        className={`w-full pl-12 pr-4 py-4 rounded-2xl outline-none border transition-all appearance-none ${isPremium ? 'bg-slate-800 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                        {timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Time Slot</label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <select value={time} onChange={(e) => setTime(e.target.value)} required
+                    className="glass-input w-full pl-11 pr-10 appearance-none cursor-pointer">
+                    {timeSlots.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
+                </div>
+              </div>
+            </>
+          )}
 
-              <button type="submit" disabled={loading || (!doctor.is_emergency && !checkDayAvailability(date))}
-                className={`w-full py-5 rounded-2xl font-bold transition-all flex justify-center items-center gap-2 shadow-xl ${
-                    doctor.is_emergency ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/30' :
-                    isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400' : 
-                    'bg-slate-950 text-white hover:bg-emerald-600'
-                } disabled:opacity-50`}
-              >
-                {loading ? "Processing..." : (
-                    <>
-                        {doctor.is_emergency ? <Zap className="h-5 w-5 fill-white" /> : <CheckCircle className="h-5 w-5" />} 
-                        {doctor.is_emergency ? 'Dispatch Emergency Call' : 'Confirm Elite Booking'}
-                    </>
-                )}
-              </button>
-            </form>
-          </motion.div>
-        </div>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit"
+            disabled={loading || (!doctor.is_emergency && !checkDayAvailability(date))}
+            className={`w-full py-4 rounded-xl font-semibold flex justify-center items-center gap-2 disabled:opacity-50 transition-all ${
+              doctor.is_emergency
+                ? 'bg-red-500 text-white shadow-glow-red hover:bg-red-600'
+                : 'gradient-primary text-white shadow-glow-cyan'
+            }`}
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+              <>
+                {doctor.is_emergency ? <Zap className="h-4 w-4 fill-white" /> : <CheckCircle className="h-4 w-4" />}
+                {doctor.is_emergency ? 'Dispatch Emergency' : 'Confirm Booking'}
+              </>
+            )}
+          </motion.button>
+        </form>
       )}
-    </AnimatePresence>
+    </Modal>
   );
 };
 

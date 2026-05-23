@@ -1,33 +1,19 @@
 import { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { History, ArrowLeft, Clock, CheckCircle2, MessageSquare, AlertCircle, Users } from "lucide-react";
+import { History, ArrowLeft, Clock, CheckCircle2, MessageSquare, AlertCircle, Users, Calendar, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import GlassCard from "../components/ui/GlassCard";
+import GradientText from "../components/ui/GradientText";
+import SkeletonLoader from "../components/ui/SkeletonLoader";
 
 const ActivityLog = () => {
-  const { user, theme } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // FIXED: Decoupled Logic - check actual user data for tier and theme state for look
-  const isDoctor = user?.role === 'doctor';
-  const isPremium = user?.is_premium;
-  const isDark = theme === 'dark';
-
   const backendUrl = import.meta.env.VITE_API_URL;
-
-  // THEME SYNC VARIABLES
-  const pageBg = isDark ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900";
-  const cardClass = isDoctor 
-    ? (isDark ? "bg-slate-900 border-cyan-500/10 shadow-none" : "bg-white border-blue-100 shadow-xl shadow-blue-900/5")
-    : isPremium 
-      ? (isDark ? "bg-slate-900 border-yellow-500/10 shadow-none" : "bg-white border-yellow-100 shadow-xl shadow-yellow-900/5")
-      : (isDark ? "bg-slate-900 border-white/5 shadow-none" : "bg-white border-slate-100 shadow-xl shadow-slate-900/5");
-
-  const accentText = isDoctor 
-    ? (isDark ? "text-cyan-400" : "text-blue-700")
-    : isPremium ? "text-yellow-500" : "text-emerald-600";
 
   useEffect(() => {
     const fetchFullLogs = async () => {
@@ -38,7 +24,7 @@ const ActivityLog = () => {
         });
         setActivities(res.data);
       } catch (err) {
-        console.error("Error fetching full logs:", err);
+        console.error("Error fetching logs:", err);
       } finally {
         setLoading(false);
       }
@@ -46,65 +32,103 @@ const ActivityLog = () => {
     fetchFullLogs();
   }, [backendUrl]);
 
-  // ICON HELPER SYNCED WITH DASHBOARD
-  const getActivityIcon = (type) => {
-    const color = isDoctor ? (isDark ? "text-cyan-400" : "text-blue-600") : isPremium ? "text-yellow-500" : "text-emerald-500";
+  const getActivityIcon = (type, title) => {
+    if (title?.includes('Penalty') || title?.includes('Unavailable') || title?.includes('Expired'))
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
+    if (title?.includes('Emergency') || title?.includes('SOS'))
+      return <Zap className="h-4 w-4 text-red-500" />;
     switch (type) {
-      case 'appointment_confirmed': return <CheckCircle2 className={`h-5 w-5 ${color}`} />;
-      case 'message_received': return <MessageSquare className="h-5 w-5 text-blue-500" />;
-      case 'profile_update': return <Users className="h-5 w-5 text-purple-500" />;
-      default: return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      case 'appointment_confirmed': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+      case 'message_received': return <MessageSquare className="h-4 w-4 text-blue-500" />;
+      case 'profile_update': return <Users className="h-4 w-4 text-purple-500" />;
+      default: return <Calendar className="h-4 w-4 text-cyan-500" />;
     }
   };
 
+  // Group by date
+  const grouped = activities.reduce((acc, act) => {
+    const date = new Date(act.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(act);
+    return acc;
+  }, {});
+
   return (
-    <div className={`min-h-screen pt-28 pb-20 px-4 transition-colors duration-500 ${pageBg}`}>
+    <div className="min-h-screen bg-[var(--bg-primary)] py-8 px-4 transition-colors duration-500">
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={() => navigate(-1)} 
-          className={`flex items-center gap-2 mb-8 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity ${isDark ? 'text-white' : 'text-slate-900'}`}
-        >
+        {/* Back Button */}
+        <button onClick={() => navigate(-1)}
+          className="flex items-center gap-2 mb-6 text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
         </button>
 
-        <div className={`rounded-[2.5rem] p-10 border transition-all ${cardClass}`}>
-          <div className="flex items-center gap-4 mb-10 text-left">
-            <div className={`p-3 rounded-2xl ${isDoctor ? (isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-blue-50 text-blue-700') : isPremium ? 'bg-yellow-500/10 text-yellow-500' : 'bg-emerald-100 text-emerald-600'}`}>
+        <GlassCard hover={false} padding="lg">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 rounded-xl gradient-primary text-white shadow-glow-cyan">
               <History className="h-6 w-6" />
             </div>
             <div>
-              <h1 className={`text-3xl font-serif font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Full Audit Log</h1>
-              <p className={`opacity-60 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>A complete history of your account activity.</p>
+              <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                Audit <GradientText gradient="primary">Log</GradientText>
+              </h1>
+              <p className="text-sm text-[var(--text-muted)]">Complete history of your account activity</p>
             </div>
           </div>
 
-          <div className="space-y-8">
-            {loading ? (
-              <div className="space-y-6">
-                {[1, 2, 3].map(i => <div key={i} className={`h-20 w-full rounded-3xl animate-pulse ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}></div>)}
-              </div>
-            ) : activities.length > 0 ? (
-              activities.map((act) => (
-                <div key={act.id} className="flex gap-6 items-start group">
-                  <div className={`mt-1 p-3 rounded-full transition-colors ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                    {getActivityIcon(act.type)}
+          {/* Timeline */}
+          {loading ? (
+            <SkeletonLoader type="table-row" count={5} />
+          ) : activities.length > 0 ? (
+            <div className="space-y-8">
+              {Object.entries(grouped).map(([date, acts]) => (
+                <div key={date}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-px flex-1 bg-[var(--border-primary)]" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] whitespace-nowrap">{date}</span>
+                    <div className="h-px flex-1 bg-[var(--border-primary)]" />
                   </div>
-                  <div className={`border-b pb-6 flex-1 text-left ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
-                    <p className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>{act.title}</p>
-                    <p className={`mt-1 opacity-70 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{act.description}</p>
-                    <div className="flex items-center gap-2 mt-3 text-[10px] font-black uppercase tracking-widest opacity-40">
-                      <Clock className="h-3 w-3" /> {new Date(act.created_at).toLocaleString()}
-                    </div>
+                  <div className="space-y-3">
+                    {acts.map((act) => {
+                      const isPenalty = act.title?.includes('Penalty') || act.title?.includes('Unavailable');
+                      return (
+                        <motion.div
+                          key={act.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`flex gap-4 items-start p-4 rounded-xl transition-colors ${
+                            isPenalty ? 'bg-red-500/5 border border-red-500/10' : 'hover:bg-[var(--bg-tertiary)]'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                            isPenalty ? 'bg-red-500/10' : 'glass'
+                          }`}>
+                            {getActivityIcon(act.type, act.title)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold text-sm ${isPenalty ? 'text-red-500' : 'text-[var(--text-primary)]'}`}>
+                              {act.title}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{act.description}</p>
+                            <div className="flex items-center gap-2 mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                              <Clock className="h-3 w-3" />
+                              {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-20">
-                <p className="opacity-40 italic">No activity recorded yet.</p>
-              </div>
-            )}
-          </div>
-        </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <History className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3 opacity-50" />
+              <p className="text-[var(--text-muted)]">No activity recorded yet</p>
+            </div>
+          )}
+        </GlassCard>
       </div>
     </div>
   );

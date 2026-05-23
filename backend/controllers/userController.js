@@ -9,7 +9,6 @@ const getUserProfile = async (req, res) => {
 
     let user;
     if (role === 'doctor') {
-      // ADDED: d.is_emergency and d.is_emergency_active to the SELECT statement
       user = await pool.query(
         "SELECT u.id, u.email, u.role, u.is_premium, d.full_name, d.specialization, d.consultation_fee, d.availability, d.phone_number, d.is_emergency, d.is_emergency_active FROM users u JOIN doctors d ON u.id = d.user_id WHERE u.id = $1",
         [userId]
@@ -37,7 +36,6 @@ const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
-    // ADDED: is_emergency to destructuring
     let { full_name, phone_number, specialization, consultation_fee, availability, address, dob, is_emergency } = req.body;
 
     if (dob === "" || dob === " ") {
@@ -46,7 +44,6 @@ const updateUserProfile = async (req, res) => {
 
     let updatedUser;
     if (role === 'doctor') {
-      // ADDED: is_emergency = $6 to the UPDATE statement
       updatedUser = await pool.query(
         "UPDATE doctors SET full_name = $1, phone_number = $2, specialization = $3, consultation_fee = $4, availability = $5, is_emergency = $6 WHERE user_id = $7 RETURNING *",
         [full_name, phone_number, specialization, consultation_fee, availability, is_emergency, userId]
@@ -81,12 +78,14 @@ const getDashboardStats = async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         const todays = await pool.query("SELECT COUNT(*) FROM appointments WHERE doctor_id = $1 AND appointment_date = $2", [doctorId, today]);
         const uniquePatients = await pool.query("SELECT COUNT(DISTINCT patient_id) FROM appointments WHERE doctor_id = $1", [doctorId]);
+        const revenue = await pool.query("SELECT COALESCE(wallet_balance, 0) as total_revenue FROM doctors WHERE id = $1", [doctorId]);
 
         stats = {
           total_appointments: totalAppts.rows[0].count,
           pending_requests: pending.rows[0].count,
           today_appointments: todays.rows[0].count,
-          total_patients: uniquePatients.rows[0].count
+          total_patients: uniquePatients.rows[0].count,
+          total_revenue: parseFloat(revenue.rows[0]?.total_revenue || 0),
         };
       }
     } else {
@@ -124,46 +123,7 @@ const getReferralData = async (req, res) => {
   }
 };
 
-// --- 5. REGISTER USER ---
-const registerUser = async (req, res) => {
-  const { fullName, email, password, role, referralCode } = req.body;
-  try {
-    const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (userExists.rows.length > 0) {
-      return res.status(400).json({ error: "User already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    let referredBy = null;
-    if (referralCode) {
-      const referrer = await pool.query("SELECT referral_code FROM users WHERE referral_code = $1", [referralCode]);
-      if (referrer.rows.length > 0) {
-        referredBy = referralCode;
-        await pool.query("UPDATE users SET referral_count = referral_count + 1 WHERE referral_code = $1", [referralCode]);
-      }
-    }
-
-    const newReferralCode = 'MC-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const newUser = await pool.query(
-      "INSERT INTO users (email, password, role, referral_code, referred_by, is_premium) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id",
-      [email, hashedPassword, role, newReferralCode, referredBy]
-    );
-
-    const userId = newUser.rows[0].id;
-    if (role === 'doctor') {
-      await pool.query("INSERT INTO doctors (user_id, full_name) VALUES ($1, $2)", [userId, fullName]);
-    } else {
-      await pool.query("INSERT INTO patients (user_id, full_name) VALUES ($1, $2)", [userId, fullName]);
-    }
-
-    res.status(201).json({ success: "User registered successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: "Server Error" });
-  }
-};
-
-// --- 6. GET WALLET BALANCE ---
+// --- 5. GET WALLET BALANCE ---
 const getWalletBalance = async (req, res) => {
   try {
     const result = await pool.query(
@@ -176,7 +136,7 @@ const getWalletBalance = async (req, res) => {
   }
 };
 
-// --- 7. GET RECENT ACTIVITY LOGS ---
+// --- 6. GET RECENT ACTIVITY LOGS ---
 const getActivityLogs = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -191,11 +151,11 @@ const getActivityLogs = async (req, res) => {
   }
 };
 
-// --- 8. UPDATE EMERGENCY ACTIVE STATUS ---
+// --- 7. UPDATE EMERGENCY ACTIVE STATUS ---
 const updateEmergencyStatus = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { active } = req.body; 
+    const { active } = req.body;
 
     const updatedDoctor = await pool.query(
       "UPDATE doctors SET is_emergency_active = $1 WHERE user_id = $2 RETURNING is_emergency_active",
@@ -206,9 +166,9 @@ const updateEmergencyStatus = async (req, res) => {
       return res.status(404).json({ message: "Doctor record not found" });
     }
 
-    res.json({ 
-      message: `Emergency status set to ${active ? 'Online' : 'Offline'}`, 
-      active: updatedDoctor.rows[0].is_emergency_active 
+    res.json({
+      message: `Emergency status set to ${active ? 'Online' : 'Offline'}`,
+      active: updatedDoctor.rows[0].is_emergency_active
     });
   } catch (err) {
     console.error("Emergency Status Update Error:", err.message);
@@ -216,13 +176,12 @@ const updateEmergencyStatus = async (req, res) => {
   }
 };
 
-module.exports = { 
-  getUserProfile, 
-  updateUserProfile, 
-  getDashboardStats, 
-  getReferralData, 
-  registerUser, 
+module.exports = {
+  getUserProfile,
+  updateUserProfile,
+  getDashboardStats,
+  getReferralData,
   getWalletBalance,
   getActivityLogs,
-  updateEmergencyStatus // Added this
+  updateEmergencyStatus,
 };

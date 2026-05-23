@@ -3,273 +3,202 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { User, Mail, Lock, UserCircle, ArrowRight, ShieldCheck, Gift, Loader2, Stethoscope, Sparkles, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { User, Mail, Lock, UserCircle, ArrowRight, Gift, Loader2, Stethoscope, Eye, EyeOff, CheckCircle, XCircle, Activity } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import ParticleBackground from '../components/ui/ParticleBackground';
+import GradientText from '../components/ui/GradientText';
 
 const Register = () => {
-    const { theme } = useContext(AuthContext);
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false); // Eye reveal state
-    const isPremium = theme === 'premium';
+  const { theme } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        password: '',
-        confirmPassword: '', // Added back
-        role: 'patient',
-        referralCode: ''
-    });
+  const [formData, setFormData] = useState({
+    fullName: '', email: '', password: '', confirmPassword: '',
+    role: 'patient', referralCode: ''
+  });
 
-    // Match validation logic
-    const passwordsMatch = formData.password === formData.confirmPassword;
-    const showMatchResult = formData.confirmPassword.length > 0;
+  const passwordsMatch = formData.password === formData.confirmPassword;
+  const showMatchResult = formData.confirmPassword.length > 0;
+  const backendUrl = import.meta.env.VITE_API_URL;
 
-    const backendUrl = import.meta.env.VITE_API_URL;
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!passwordsMatch) return toast.error("Passwords do not match!");
+    setLoading(true);
+    try {
+      const res = await axios.post(`${backendUrl}/api/auth/register`, formData);
+      if (res.data.token && res.data.user) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        toast.success("Account Created!");
+        window.location.href = '/dashboard';
+      } else {
+        toast.success("Registration Successful! Please Login.");
+        navigate('/login');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Registration Failed");
+    } finally { setLoading(false); }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!passwordsMatch) return toast.error("Passwords do not match!");
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const res = await axios.post(`${backendUrl}/api/auth/google-login`, {
+        token: credentialResponse.credential,
+        role: formData.role,
+        referralCode: formData.referralCode
+      });
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        toast.success("Google Registration Successful!");
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      toast.error("Google Registration Failed");
+    }
+  };
 
-        setLoading(true);
-        try {
-            // 1. Post to the correct /api/auth/register endpoint
-            const res = await axios.post(`${backendUrl}/api/auth/register`, formData);
+  return (
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-[var(--bg-primary)] relative overflow-hidden">
+      <div className="absolute inset-0">
+        <ParticleBackground particleCount={30} color="purple" speed={0.3} />
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/3 left-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-[120px]" />
+      </div>
 
-            // 2. Save the session data exactly like your login logic does
-            if (res.data.token && res.data.user) {
-                localStorage.setItem('token', res.data.token);
-                localStorage.setItem('user', JSON.stringify(res.data.user));
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 max-w-lg w-full"
+      >
+        <div className="glass-card p-8 sm:p-10 border border-[var(--border-primary)]">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-glow-purple">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-display font-bold text-[var(--text-primary)]">Create Account</h1>
+              <p className="text-xs text-[var(--text-muted)]">Join <GradientText gradient="primary">MediConnect</GradientText></p>
+            </div>
+          </div>
 
-                toast.success("Account Created! Redirecting to Dashboard...");
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {/* Role Selector */}
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setFormData({ ...formData, role: 'patient' })}
+                className={`p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                  formData.role === 'patient'
+                    ? 'border-cyan-500 bg-cyan-500/10 text-cyan-500'
+                    : 'border-[var(--border-primary)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                }`}>
+                <UserCircle className="h-5 w-5" />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">Patient</p>
+                  <p className="text-[9px] uppercase tracking-wider opacity-60">Personal</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => setFormData({ ...formData, role: 'doctor' })}
+                className={`p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                  formData.role === 'doctor'
+                    ? 'border-purple-500 bg-purple-500/10 text-purple-500'
+                    : 'border-[var(--border-primary)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                }`}>
+                <Stethoscope className="h-5 w-5" />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">Doctor</p>
+                  <p className="text-[9px] uppercase tracking-wider opacity-60">Clinical</p>
+                </div>
+              </button>
+            </div>
 
-                // 3. Use a hard redirect to ensure AuthContext picks up the new token
-                window.location.href = '/dashboard';
-            } else {
-                // Fallback if your backend doesn't return the user object immediately
-                toast.success("Registration Successful! Please Login.");
-                navigate('/login');
-            }
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Registration Failed");
-        } finally {
-            setLoading(false);
-        }
-    };
+            {/* Form Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField icon={User} name="fullName" placeholder="Full Name" onChange={handleChange} required />
+              <InputField icon={Mail} name="email" type="email" placeholder="Email Address" onChange={handleChange} required autoComplete="email" />
+              
+              {/* Password */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--text-muted)]">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Create Password" autoComplete="new-password"
+                  onChange={handleChange} required className="glass-input w-full pl-11 pr-12" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
 
-    const handleGoogleSuccess = async (credentialResponse) => {
-        try {
-            const res = await axios.post(`${backendUrl}/api/auth/google-login`, {
-                token: credentialResponse.credential,
-                role: formData.role,
-                referralCode: formData.referralCode
-            });
+              {/* Confirm Password */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--text-muted)]">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <input name="confirmPassword" type={showPassword ? 'text' : 'password'} placeholder="Confirm Password"
+                  onChange={handleChange} required
+                  className={`glass-input w-full pl-11 pr-12 ${showMatchResult && !passwordsMatch ? 'border-red-500' : ''}`} />
+                {showMatchResult && (
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    {passwordsMatch ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                  </div>
+                )}
+              </div>
 
-            if (res.data.token) {
-                localStorage.setItem('token', res.data.token);
-                toast.success("Google Registration Successful!");
-                window.location.href = '/dashboard';
-            }
-        } catch (err) {
-            console.error(err);
-            toast.error("Google Registration Failed");
-        }
-    };
+              <InputField icon={Gift} name="referralCode" placeholder="Invite Code (Optional)" onChange={handleChange} className="md:col-span-2" />
+            </div>
 
-    return (
-        <div className={`min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500 ${isPremium ? 'bg-slate-950' : 'bg-slate-50'}`}>
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`max-w-4xl w-full flex flex-col md:flex-row overflow-hidden rounded-[3rem] shadow-2xl border ${isPremium ? 'bg-slate-900 border-white/5' : 'bg-white border-slate-100'}`}
+            {/* Submit */}
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={loading || (showMatchResult && !passwordsMatch)}
+              type="submit"
+              className={`w-full py-4 rounded-xl font-semibold flex justify-center items-center gap-2 text-white shadow-lg disabled:opacity-50 transition-all ${
+                formData.role === 'doctor'
+                  ? 'bg-gradient-to-r from-purple-500 to-cyan-500 shadow-glow-purple'
+                  : 'gradient-primary shadow-glow-cyan'
+              }`}
             >
-                {/* Left Side: Brand Info (Kept identical to your version) */}
-                <div className={`md:w-1/3 p-12 text-white flex flex-col justify-between relative overflow-hidden ${isPremium ? 'bg-slate-800' : 'bg-slate-900'}`}>
-                    <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br pointer-events-none ${isPremium ? 'from-yellow-500/10' : 'from-emerald-500/10'}`}></div>
-                    <div className="relative z-10 text-left">
-                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center mb-6 border ${isPremium ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
-                            <ShieldCheck className={`h-6 w-6 ${isPremium ? 'text-yellow-500' : 'text-emerald-400'}`} />
-                        </div>
-                        <h2 className="text-3xl font-serif font-bold leading-tight">Join the <br />Medical Elite.</h2>
-                        <p className="mt-4 text-slate-400 text-sm leading-relaxed">Secure, efficient healthcare management for practitioners and patients.</p>
-                    </div>
-                    <div className="relative z-10 mt-12 md:mt-0 text-left">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-4">Registry Members</p>
-                        <div className="flex -space-x-2">
-                            {[1, 2, 3].map(i => <div key={i} className="h-8 w-8 rounded-full border-2 border-slate-900 bg-slate-700"></div>)}
-                            <div className={`h-8 w-8 rounded-full border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold ${isPremium ? 'bg-yellow-500 text-slate-950' : 'bg-emerald-600'}`}>+2k</div>
-                        </div>
-                    </div>
-                </div>
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Create Account <ArrowRight className="h-4 w-4" /></>}
+            </motion.button>
+          </form>
 
-                {/* Right Side: Form (Restored your full logic + added features) */}
-                <div className="md:w-2/3 p-10 md:p-12">
-                    <div className="text-left mb-8">
-                        <h2 className={`text-3xl font-serif font-bold ${isPremium ? 'text-white' : 'text-slate-900'}`}>Create Account</h2>
-                        <p className="text-slate-500 mt-2 font-light">Join the future of digital healthcare.</p>
-                    </div>
+          {/* Divider */}
+          <div className="my-8 flex items-center gap-4">
+            <div className="flex-1 h-px bg-[var(--border-primary)]" />
+            <span className="text-xs text-[var(--text-muted)] font-medium">or continue with</span>
+            <div className="flex-1 h-px bg-[var(--border-primary)]" />
+          </div>
 
-                    <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div
-                                onClick={() => setFormData({ ...formData, role: 'patient' })}
-                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${formData.role === 'patient'
-                                    ? (isPremium ? 'bg-yellow-500/10 border-yellow-500 text-yellow-500' : 'bg-emerald-50 border-emerald-500 text-emerald-600')
-                                    : 'bg-transparent border-slate-100 hover:border-slate-200'
-                                    }`}
-                            >
-                                <UserCircle className="h-6 w-6" />
-                                <div className="text-left">
-                                    <p className="font-bold text-sm">Patient</p>
-                                    <p className="text-[9px] uppercase font-black tracking-widest opacity-60">Personal</p>
-                                </div>
-                            </div>
+          <div className="flex justify-center">
+            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => toast.error("Google Auth Failed")}
+              theme={theme === 'dark' ? "filled_black" : "outline"} shape="pill" size="large" />
+          </div>
 
-                            <div
-                                onClick={() => setFormData({ ...formData, role: 'doctor' })}
-                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${formData.role === 'doctor'
-                                    ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400'
-                                    : 'bg-transparent border-slate-100 hover:border-slate-200'
-                                    }`}
-                            >
-                                <Stethoscope className="h-6 w-6" />
-                                <div className="text-left">
-                                    <p className="font-bold text-sm">Doctor</p>
-                                    <p className="text-[9px] uppercase font-black tracking-widest opacity-60">Clinical</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <InputGroup
-                                icon={<User />}
-                                type="text"
-                                name="fullName"
-                                placeholder="Full Name"
-                                onChange={handleChange}
-                                required
-                                isPremium={isPremium}
-                            />
-                            <InputGroup
-                                icon={<Mail />}
-                                type="email"
-                                name="email"
-                                placeholder="Email Address"
-                                autoComplete="email"
-                                onChange={handleChange}
-                                required
-                                isPremium={isPremium}
-                            />
-
-                            {/* Password with Eye Toggle */}
-                            <div className="relative group text-left">
-                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${isPremium ? 'text-slate-600 group-focus-within:text-yellow-500' : 'text-slate-400 group-focus-within:text-emerald-500'}`}>
-                                    <Lock className="h-5 w-5" />
-                                </div>
-                                <input
-                                    name="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Create Password"
-                                    autoComplete="new-password"
-                                    onChange={handleChange}
-                                    required
-                                    className={`block w-full pl-12 pr-12 py-4 rounded-xl transition-all font-medium border-0 outline-none ${isPremium ? 'bg-slate-800 text-white focus:ring-2 focus:ring-yellow-500/20 placeholder:text-slate-600' : 'bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-100 placeholder:text-slate-400'}`}
-                                />
-                                <button type="button" onMouseEnter={() => setShowPassword(true)} onMouseLeave={() => setShowPassword(false)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-emerald-500">
-                                    {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-                                </button>
-                            </div>
-
-                            {/* Confirm Password with Validation Marks */}
-                            <div className="relative group text-left">
-                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${isPremium ? 'text-slate-600 group-focus-within:text-yellow-500' : 'text-slate-400 group-focus-within:text-emerald-500'}`}>
-                                    <Lock className="h-5 w-5" />
-                                </div>
-                                <input
-                                    name="confirmPassword"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Confirm Password"
-                                    onChange={handleChange}
-                                    required
-                                    className={`block w-full pl-12 pr-12 py-4 rounded-xl transition-all font-medium border-0 outline-none ${isPremium ? 'bg-slate-800 text-white focus:ring-2 focus:ring-yellow-500/20' : 'bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-100'} ${showMatchResult && !passwordsMatch ? 'ring-2 ring-red-500/50' : ''}`}
-                                />
-                                {showMatchResult && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                        {passwordsMatch ? <CheckCircle className="h-5 w-5 text-emerald-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
-                                    </div>
-                                )}
-                            </div>
-
-                            <InputGroup
-                                icon={<Gift />}
-                                type="text"
-                                name="referralCode"
-                                placeholder="Invite Code (Optional)"
-                                onChange={handleChange}
-                                isPremium={isPremium}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading || (showMatchResult && !passwordsMatch)}
-                            className={`w-full py-4 px-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-all shadow-xl ${formData.role === 'doctor'
-                                ? 'bg-cyan-600 text-white hover:bg-cyan-500 shadow-cyan-900/20'
-                                : isPremium ? 'bg-yellow-500 text-slate-950 hover:bg-yellow-400' : 'bg-slate-950 text-white hover:bg-emerald-700'
-                                }`}
-                        >
-                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Complete Registration"}
-                            {!loading && <ArrowRight className="h-5 w-5" />}
-                        </button>
-                    </form>
-
-                    <div className="relative my-8">
-                        <div className="absolute inset-0 flex items-center"><div className={`w-full border-t ${isPremium ? 'border-white/5' : 'border-slate-100'}`}></div></div>
-                        <div className="relative flex justify-center text-sm"><span className={`px-4 font-medium italic ${isPremium ? 'bg-slate-900 text-slate-500' : 'bg-white text-slate-400'}`}>or enroll via</span></div>
-                    </div>
-
-                    <div className="flex justify-center mb-8">
-                        <GoogleLogin
-                            onSuccess={handleGoogleSuccess}
-                            onError={() => toast.error("Google Auth Failed")}
-                            useOneTap
-                            shape="circle"
-                            theme={isPremium ? "filled_black" : "outline"}
-                        />
-                    </div>
-
-                    <p className={`text-center text-sm font-medium ${isPremium ? 'text-slate-500' : 'text-slate-500'}`}>
-                        Already a member?{' '}
-                        <Link to="/login" className={`${isPremium ? 'text-yellow-500' : 'text-emerald-600'} hover:underline font-bold underline-offset-4`}>
-                            Sign In
-                        </Link>
-                    </p>
-                </div>
-            </motion.div>
+          <p className="text-center text-sm text-[var(--text-muted)] mt-8">
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-cyan-500 hover:text-cyan-400 transition-colors">Sign In</Link>
+          </p>
         </div>
-    );
+      </motion.div>
+    </div>
+  );
 };
 
-// Original InputGroup Helper (Theme-aware)
-const InputGroup = ({ icon, isPremium, ...props }) => (
-    <div className="relative group text-left">
-        <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${isPremium ? 'text-slate-600 group-focus-within:text-yellow-500' : 'text-slate-400 group-focus-within:text-emerald-500'}`}>
-            {icon}
-        </div>
-        <input
-            {...props}
-            className={`block w-full pl-12 pr-4 py-4 rounded-xl transition-all font-medium border-0 outline-none ${isPremium
-                ? 'bg-slate-800 text-white focus:ring-2 focus:ring-yellow-500/20 placeholder:text-slate-600'
-                : 'bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-100 placeholder:text-slate-400'
-                }`}
-        />
+const InputField = ({ icon: Icon, className = '', ...props }) => (
+  <div className={`relative ${className}`}>
+    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--text-muted)]">
+      <Icon className="h-4 w-4" />
     </div>
+    <input {...props} className="glass-input w-full pl-11 pr-4" />
+  </div>
 );
 
 export default Register;

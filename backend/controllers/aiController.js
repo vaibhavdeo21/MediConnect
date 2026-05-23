@@ -15,7 +15,6 @@ const chatWithGemini = async (req, res) => {
     // Replace whatever model line you have with this specific one:
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
-      apiVersion: 'v1'
     });
     const prompt = `
       You are the "MediConnect Elite AI Assistant," a premium medical concierge for users in India.

@@ -1,19 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const authorize = require('../middleware/authMiddleware');
-const { 
-    getUserProfile, 
+const {
+    getUserProfile,
     updateUserProfile,
-    getDashboardStats, 
+    getDashboardStats,
     getReferralData,
-    registerUser, 
     getWalletBalance,
     getActivityLogs,
-    updateEmergencyStatus // Added this
+    updateEmergencyStatus,
 } = require('../controllers/userController');
-
-// --- PUBLIC ---
-router.post('/register', registerUser);
 
 // --- PROTECTED (Requires authorize) ---
 
@@ -23,9 +19,9 @@ router.put('/profile', authorize, updateUserProfile);
 
 // Used in Dashboard.jsx
 router.get('/dashboard-stats', authorize, getDashboardStats);
-router.get('/activity-logs', authorize, getActivityLogs); 
+router.get('/activity-logs', authorize, getActivityLogs);
 
-// NEW: Endpoint for Emergency Active Switch
+// Emergency Active Switch (Doctor only)
 router.put('/emergency-status', authorize, updateEmergencyStatus);
 
 // Used in PremiumPerks.jsx

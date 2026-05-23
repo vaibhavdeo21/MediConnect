@@ -1,185 +1,303 @@
-import { useContext, useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useContext, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Menu, X, User, Calendar, LogOut, ChevronDown, Crown, Sparkles, LayoutGrid, Wallet, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Activity, Menu, X, LogOut, User, Wallet, Bell,
+  Sun, Moon, Calendar, Search, Shield, LayoutDashboard,
+  Zap, Crown, Settings, Heart, FileText, ChevronDown,
+} from 'lucide-react';
 
 const Navbar = () => {
-  const { user, logout, theme, toggleTheme } = useContext(AuthContext);
+  const { user, theme, toggleTheme, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef(null);
 
   const isDoctor = user?.role === 'doctor';
-  const isPremium = user?.is_premium; 
-  const isDark = theme === 'dark';
+  const isAdmin = user?.role === 'admin';
+  const isPremium = user?.is_premium;
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setProfileOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
-    setIsOpen(false);
-    setShowProfileMenu(false);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowProfileMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const navLinks = user ? (
+    isDoctor ? [
+      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/my-appointments', label: 'Appointments', icon: Calendar },
+      { to: '/wallet', label: 'Earnings', icon: Wallet },
+    ] : isAdmin ? [
+      { to: '/dashboard', label: 'Command Center', icon: Shield },
+      { to: '/my-appointments', label: 'Appointments', icon: Calendar },
+    ] : [
+      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/doctors', label: 'Find Doctors', icon: Search },
+      { to: '/my-appointments', label: 'Appointments', icon: Calendar },
+      { to: '/wallet', label: 'Wallet', icon: Wallet },
+    ]
+  ) : [];
 
-  const navClass = isDoctor
-    ? (isDark ? "bg-slate-950 border-b border-cyan-500/20 shadow-2xl" : "bg-white border-b border-blue-100 shadow-md")
-    : (isPremium ? (isDark ? "bg-slate-950 border-b border-yellow-500/20 shadow-2xl" : "bg-white border-b border-yellow-100 shadow-md") : (isDark ? "bg-slate-950 border-b border-white/5" : "bg-white shadow-md"));
-
-  const logoClass = isDoctor
-    ? (isDark ? "text-cyan-400" : "text-blue-700")
-    : (isPremium ? (isDark ? "text-yellow-500" : "text-yellow-600") : (isDark ? "text-white" : "text-primary")); 
-    
-  const linkClass = isDark ? "text-slate-300 hover:text-white" : "text-slate-600 hover:text-primary";
-  // FIXED: Dropdown now follows theme toggle
-  const dropdownClass = isDark ? "bg-slate-900 border-white/10 text-white" : "bg-white border-slate-200 shadow-2xl text-slate-900";
+  const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className={`${navClass} sticky top-0 z-[100] transition-colors duration-500`}>
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+      scrolled ? 'glass-nav' : 'bg-transparent'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20">
+        <div className="flex items-center justify-between h-[var(--nav-height)]">
+          {/* Logo */}
+          <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-3 group">
+            <motion.div 
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.6 }}
+              className="relative"
+            >
+              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow-cyan">
+                <Activity className="h-5 w-5 text-white" />
+              </div>
+            </motion.div>
+            <div className="flex flex-col">
+              <span className="text-lg font-display font-bold tracking-tight text-[var(--text-primary)]">
+                Medi<span className="gradient-text-primary">Connect</span>
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)] -mt-0.5">
+                Healthcare OS
+              </span>
+            </div>
+          </Link>
 
-          <div className="flex items-center">
-            <Link to="/" className={`text-2xl font-serif font-bold ${logoClass} flex items-center gap-2 tracking-tight`}>
-              <span className={`${isDoctor ? 'bg-cyan-500' : isPremium ? 'bg-yellow-500' : 'bg-primary text-white'} px-2 py-0.5 rounded shadow-lg text-slate-950`}>MC</span>
-              MediConnect
-            </Link>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map(link => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                    isActive(link.to)
+                      ? 'text-[var(--accent-cyan)] bg-cyan-500/10'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {link.label}
+                  {isActive(link.to) && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full"
+                    />
+                  )}
+                </Link>
+              );
+            })}
           </div>
 
-          <div className="hidden md:flex items-center space-x-8">
-            {!user && <Link to="/" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors`}>Home</Link>}
+          {/* Right Section */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)]"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </motion.button>
 
-            {user ? (
-              <div className="flex items-center gap-6">
-                <Link to="/dashboard" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors`}>Dashboard</Link>
-
-                {isDoctor ? (
-                  <>
-                    <Link to="/my-appointments" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors flex items-center gap-2`}>
-                      <Calendar className={`h-4 w-4 ${isDark ? 'text-cyan-400' : 'text-blue-700'}`} /> Schedule
-                    </Link>
-                    <Link to="/wallet" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors flex items-center gap-2`}>
-                      <Wallet className={`h-4 w-4 ${isDark ? 'text-cyan-400' : 'text-blue-700'}`} /> Earnings
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/doctors" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors`}>Find Doctors</Link>
-                    <Link to="/departments" className={`${linkClass} font-bold text-sm uppercase tracking-widest transition-colors flex items-center gap-2`}>
-                      <LayoutGrid className={`h-4 w-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} /> Departments
-                    </Link>
-                  </>
-                )}
-
+            {user && (
+              <>
+                {/* Premium Badge */}
                 {isPremium && (
-                  <Link to="/premium-perks" className={`flex items-center gap-2 font-bold text-xs uppercase tracking-tighter px-3 py-1.5 rounded-full border animate-pulse ${isDark ? 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' : 'text-yellow-700 bg-yellow-50 border-yellow-200'}`}>
-                    <Sparkles className="h-3 w-3" /> Elite Perks
+                  <Link to="/premium-perks" className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
+                    <Crown className="h-3 w-3 fill-amber-500" />
+                    Premium
                   </Link>
                 )}
 
-                {!isPremium && !isDoctor && (
-                  <Link to="/subscribe" className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg ${isDark ? 'bg-white text-slate-900 hover:bg-yellow-400' : 'bg-slate-900 text-white hover:bg-emerald-600'}`}>
-                    <Crown className="h-4 w-4 text-yellow-400" /> Upgrade
-                  </Link>
-                )}
-
-                <button onClick={toggleTheme} className={`p-2 rounded-xl border transition-all ${isDark ? 'bg-slate-900 text-yellow-500 border-white/10 hover:bg-slate-800' : 'bg-slate-100 text-blue-700 border-blue-100 hover:bg-slate-200'}`}>
-                  {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </button>
-
+                {/* Profile Dropdown */}
                 <div className="relative" ref={dropdownRef}>
-                  {/* FIXED: text-slate-900 logic ensures name visibility in light mode */}
-                  <button onClick={() => setShowProfileMenu(!showProfileMenu)} className={`flex items-center gap-3 font-bold text-sm transition focus:outline-none ${isDark ? 'text-white' : 'text-slate-700'}`}>
-                    <div className={`p-2 rounded-full border-2 ${isDoctor ? 'bg-cyan-500/10 border-cyan-500/50' : isPremium ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-slate-100 border-transparent'}`}>
-                      <User className={`h-5 w-5 ${isDoctor ? 'text-cyan-400' : isPremium ? 'text-yellow-500' : 'text-slate-500'}`} />
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setProfileOpen(!profileOpen)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${
+                      profileOpen ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white ${
+                      isDoctor ? 'bg-gradient-to-br from-blue-500 to-cyan-500' 
+                      : isPremium ? 'bg-gradient-to-br from-amber-500 to-orange-500' 
+                      : 'bg-gradient-to-br from-cyan-500 to-purple-500'
+                    }`}>
+                      {user.fullName?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
-                    <span className={`hidden lg:block ${isDark ? 'text-white' : 'text-slate-900'}`}>Hi, {user.fullName?.split(' ')[0]}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
-                  </button>
+                    <div className="hidden lg:block text-left">
+                      <p className="text-xs font-semibold text-[var(--text-primary)] leading-tight truncate max-w-[100px]">
+                        {isDoctor ? 'Dr. ' : ''}{user.fullName?.split(' ')[0]}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-muted)] capitalize">
+                        {user.role}
+                      </p>
+                    </div>
+                    <ChevronDown className={`h-3 w-3 text-[var(--text-muted)] transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+                  </motion.button>
 
                   <AnimatePresence>
-                    {showProfileMenu && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 mt-3 w-56 rounded-2xl shadow-2xl border py-3 z-[110] ${dropdownClass}`}>
-                        <div className={`px-5 py-3 border-b mb-2 ${isDoctor ? 'border-cyan-500/10' : isPremium ? 'border-yellow-500/10' : 'border-slate-100'}`}>
-                          <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Authorized Access</p>
-                          <p className={`text-sm font-serif font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{user.email}</p>
+                    {profileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-64 glass-card p-2 border border-[var(--border-primary)] shadow-premium"
+                      >
+                        {/* User Info */}
+                        <div className="px-3 py-3 border-b border-[var(--border-subtle)] mb-2">
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            {isDoctor ? 'Dr. ' : ''}{user.fullName}
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">{user.email}</p>
                         </div>
-                        <Link to="/profile" onClick={() => setShowProfileMenu(false)} className={`flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${isDark ? 'hover:bg-white/5 text-slate-300 hover:text-white' : 'hover:bg-slate-50 text-slate-700 hover:text-primary'}`}>
-                          <User className="h-4 w-4" /> My Profile
-                        </Link>
-                        <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-500/5 transition-colors mt-2">
-                          <LogOut className="h-4 w-4" /> Sign Out
+
+                        {/* Links */}
+                        <DropdownLink to="/profile" icon={User} label="Profile" />
+                        <DropdownLink to="/wallet" icon={Wallet} label={isDoctor ? 'Earnings' : 'Wallet'} />
+                        <DropdownLink to="/activity" icon={FileText} label="Activity Log" />
+                        {isPremium && <DropdownLink to="/premium-perks" icon={Crown} label="Premium Perks" />}
+
+                        <div className="border-t border-[var(--border-subtle)] my-2" />
+
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
                         </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-6">
-                <Link to="/doctors" className={`${linkClass} font-bold text-sm uppercase tracking-widest`}>Find Doctors</Link>
-                <Link to="/login" className={`${linkClass} font-bold text-sm uppercase tracking-widest`}>Login</Link>
-                <Link to="/register" className={`bg-primary text-white shadow-teal-500/30 px-6 py-2.5 rounded-full font-bold text-sm transition shadow-lg`}>Sign Up</Link>
+              </>
+            )}
+
+            {!user && (
+              <div className="hidden md:flex items-center gap-3">
+                <Link to="/login" className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-4 py-2">
+                  Sign In
+                </Link>
+                <Link to="/register" className="px-5 py-2.5 rounded-xl text-sm font-semibold gradient-primary text-white shadow-glow-cyan hover:shadow-lg transition-all">
+                  Get Started
+                </Link>
               </div>
             )}
-          </div>
 
-          <div className="flex items-center md:hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className={isDoctor ? 'text-cyan-400' : isPremium ? 'text-yellow-500' : 'text-slate-600'}>
-              {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
-            </button>
+            {/* Mobile Menu Button */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="md:hidden p-2 rounded-xl hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </motion.button>
           </div>
         </div>
       </div>
 
+      {/* Mobile Menu */}
       <AnimatePresence>
-        {isOpen && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`md:hidden border-t py-6 px-6 space-y-6 shadow-2xl overflow-hidden ${isDark ? 'bg-slate-950 border-white/5' : 'bg-white'}`}>
-            {!user && <Link to="/" className={`block font-bold text-sm uppercase tracking-widest ${linkClass}`} onClick={() => setIsOpen(false)}>Home</Link>}
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden glass border-t border-[var(--border-primary)] overflow-hidden"
+          >
+            <div className="px-4 py-4 space-y-1">
+              {navLinks.map(link => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      isActive(link.to) ? 'text-[var(--accent-cyan)] bg-cyan-500/10' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                );
+              })}
 
-            {user ? (
-              <div className={`pt-6 border-t ${isDoctor ? 'border-cyan-500/10' : isPremium ? 'border-yellow-500/10' : 'border-slate-100'}`}>
-                <div className="flex items-center gap-4 mb-6 text-left">
-                  <div className={`p-3 rounded-full ${isDoctor ? 'bg-cyan-500/20' : isPremium ? 'bg-yellow-500/20' : 'bg-primary/10'}`}>
-                    <User className={`h-6 w-6 ${isDoctor ? 'text-cyan-400' : isPremium ? 'text-yellow-500' : 'text-primary'}`} />
-                  </div>
-                  <div>
-                    <p className={`font-serif font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{user.fullName}</p>
-                    <p className={`text-xs text-slate-500`}>{user.email}</p>
-                  </div>
-                </div>
-                <div className="space-y-4 text-left">
-                  <Link to="/dashboard" className={`flex items-center gap-3 font-bold text-sm ${linkClass}`} onClick={() => setIsOpen(false)}><LayoutGrid className="h-4 w-4" /> Dashboard</Link>
-                  {!isDoctor && <Link to="/departments" className={`flex items-center gap-3 font-bold text-sm ${linkClass}`} onClick={() => setIsOpen(false)}><LayoutGrid className="h-4 w-4" /> Departments</Link>}
-                  <Link to="/profile" className={`flex items-center gap-3 font-bold text-sm ${linkClass}`} onClick={() => setIsOpen(false)}><User className="h-4 w-4" /> Profile</Link>
-                  <button onClick={() => { toggleTheme(); setIsOpen(false); }} className={`flex items-center gap-3 font-bold text-sm ${linkClass}`}>
-                    {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {isDark ? 'Light Mode' : 'Dark Mode'}
+              {!user && (
+                <>
+                  <div className="border-t border-[var(--border-subtle)] my-3" />
+                  <Link to="/login" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]">
+                    Sign In
+                  </Link>
+                  <Link to="/register" className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold gradient-primary text-white">
+                    Get Started
+                  </Link>
+                </>
+              )}
+
+              {user && (
+                <>
+                  <div className="border-t border-[var(--border-subtle)] my-3" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
                   </button>
-                  <button onClick={handleLogout} className="flex items-center gap-3 font-bold text-sm text-red-500 pt-2"><LogOut className="h-4 w-4" /> Sign Out</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <Link to="/doctors" className={`block font-bold text-sm uppercase tracking-widest ${linkClass}`} onClick={() => setIsOpen(false)}>Find Doctors</Link>
-                <Link to="/login" className="text-center py-3 rounded-xl font-bold border border-slate-200 text-slate-700" onClick={() => setIsOpen(false)}>Login</Link>
-                <Link to="/register" className="text-center py-3 rounded-xl font-bold shadow-lg bg-primary text-white" onClick={() => setIsOpen(false)}>Sign Up</Link>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </nav>
   );
 };
+
+const DropdownLink = ({ to, icon: Icon, label }) => (
+  <Link
+    to={to}
+    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+  >
+    <Icon className="h-4 w-4" />
+    {label}
+  </Link>
+);
 
 export default Navbar;

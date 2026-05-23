@@ -8,23 +8,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const backendUrl = import.meta.env.VITE_API_URL;
   
-  // Theme strictly handles visual preference (dark/light)
+  // Theme: dark/light — stored in localStorage, applied via data-theme attribute
   const [theme, setTheme] = useState(localStorage.getItem('theme_mode') || 'dark');
 
+  // Apply theme to DOM
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme_mode', theme);
+  }, [theme]);
+
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme_mode', newTheme);
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
   const normalizeUserData = (data) => {
     return {
       ...data,
-      fullName: data.full_name || data.fullName || 'User'
+      fullName: data.full_name || data.fullName || 'User',
     };
   };
 
-  // --- 1. REFRESH USER (Server Sync) ---
+  // Refresh user from server
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -38,12 +42,8 @@ export const AuthProvider = ({ children }) => {
       });
 
       const normalizedData = normalizeUserData(res.data);
-
       localStorage.setItem("user", JSON.stringify(normalizedData));
       setUser({ token, ...normalizedData });
-      
-      // Removed the logic that overwrote 'theme' with 'premium'
-      // The Premium status is now rightfully read from 'normalizedData.is_premium'
     } catch (err) {
       console.error("Failed to sync user data", err);
       if (err.response && err.response.status === 401) {
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [backendUrl]);
 
-  // --- 2. INITIALIZATION ---
+  // Initialize
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("token");
@@ -69,27 +69,25 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, [refreshUser]);
 
-  // --- 3. LOGIN FUNCTION ---
+  // Login
   const login = async (email, password) => {
     const res = await axios.post(`${backendUrl}/api/auth/login`, { email, password });
     const normalizedUser = normalizeUserData(res.data.user);
 
     localStorage.setItem("token", res.data.token);
     localStorage.setItem("user", JSON.stringify(normalizedUser));
-
     setUser({ token: res.data.token, ...normalizedUser });
     return res.data;
   };
 
-  // --- 4. LOGOUT FUNCTION ---
+  // Logout
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
-    // Optional: Reset to dark on logout if desired, or keep user preference
-    // setTheme('dark'); 
   };
 
+  // Update user state
   const updateUser = (updatedData) => {
     setUser((prevUser) => {
       const mergedData = { ...prevUser, ...updatedData };
@@ -109,9 +107,9 @@ export const AuthProvider = ({ children }) => {
       logout,
       updateUser,
       refreshUser,
-      loading
+      loading,
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
