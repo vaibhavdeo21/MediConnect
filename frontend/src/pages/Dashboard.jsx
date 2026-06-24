@@ -6,10 +6,11 @@ import {
   Users, Calendar, Clock, Activity, Search,
   ArrowUpRight, TrendingUp, Shield, Sparkles, Crown,
   CheckCircle2, AlertCircle, History, MessageSquare, Wallet, 
-  Video, Zap, X, Check, Bot, Send, Loader2, ChevronRight,
+  Video, Zap, X, Check, Bot, Send, Loader2, ChevronRight, AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
+import { io as socketIO } from "socket.io-client";
 import RescheduleModal from "../components/RescheduleModal";
 import GlassCard from "../components/ui/GlassCard";
 import StatusBadge from "../components/ui/StatusBadge";
@@ -51,6 +52,99 @@ const EmergencyTimer = ({ timeoutAt, onExpire, isPatient }) => {
   );
 };
 
+// ── Decline Reason Modal ─────────────────────────────────────────────────────
+const DeclineReasonModal = ({ isOpen, isEmergency, onConfirm, onClose }) => {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reason.trim()) {
+      toast.warning("Please provide a reason for declining.");
+      return;
+    }
+    setSubmitting(true);
+    await onConfirm(reason.trim());
+    setSubmitting(false);
+    setReason("");
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          className="glass-card w-full max-w-md p-6 border border-red-500/30"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 rounded-xl bg-red-500/10">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-[var(--text-primary)]">
+                {isEmergency ? 'Decline Emergency SOS' : 'Decline Appointment'}
+              </h3>
+              <p className="text-xs text-[var(--text-muted)]">
+                {isEmergency ? 'A reason is required for declining emergency requests.' : 'Please provide a reason for declining.'}
+              </p>
+            </div>
+          </div>
+
+          {isEmergency && (
+            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/20 mb-4">
+              <p className="text-xs text-red-400 font-semibold">
+                ⚠️ Declining an emergency SOS will be recorded. Repeated declines may result in penalties.
+              </p>
+            </div>
+          )}
+
+          <div className="mb-4">
+            <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">
+              Reason for Declining *
+            </label>
+            <textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={isEmergency ? "e.g. In surgery, handling critical patient, technical issue..." : "e.g. Schedule conflict, patient outside specialty..."}
+              className="glass-input w-full text-sm resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl glass border border-[var(--border-primary)] text-sm font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSubmit}
+              disabled={submitting || !reason.trim()}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              Confirm Decline
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 const Dashboard = () => {
   const { user, theme, updateUser } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
@@ -59,6 +153,9 @@ const Dashboard = () => {
   const [liveSession, setLiveSession] = useState(null);
   const [isEmergencyActive, setIsEmergencyActive] = useState(user?.is_emergency_active || false);
   const [rescheduleAppt, setRescheduleAppt] = useState(null);
+
+  // Decline reason modal state
+  const [declineModal, setDeclineModal] = useState({ open: false, apptId: null, isEmergency: false });
   
   // Chat state
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -79,26 +176,65 @@ const Dashboard = () => {
     }
   }, [messages, isChatOpen]);
 
+  // ── Fetch dashboard data using Promise.allSettled so one failed
+  //    request never blocks the whole dashboard from rendering ──────
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      const [statsRes, logsRes, activeCallRes, apptRes] = await Promise.all([
+      const [statsRes, logsRes, activeCallRes, apptRes] = await Promise.allSettled([
         axios.get(`${backendUrl}/api/users/dashboard-stats`, { headers }),
         axios.get(`${backendUrl}/api/users/activity-logs`, { headers }),
         axios.get(`${backendUrl}/api/appointments/active-call`, { headers }),
         axios.get(`${backendUrl}/api/appointments/my-appointments`, { headers })
       ]);
-      setStats(statsRes.data);
-      setActivities(logsRes.data);
-      setAppointments(apptRes.data);
-      if (activeCallRes.data) setLiveSession(activeCallRes.data);
+
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      else setStats({});                                 // render with empty stats rather than forever-loading
+      if (logsRes.status === 'fulfilled') setActivities(logsRes.value.data);
+      if (apptRes.status === 'fulfilled') setAppointments(apptRes.value.data);
+      if (activeCallRes.status === 'fulfilled' && activeCallRes.value.data) setLiveSession(activeCallRes.value.data);
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
+      setStats({});   // unblock the UI even on unexpected error
     }
   };
 
   useEffect(() => { fetchData(); }, [backendUrl]);
+
+  // ── Socket: reconnect on penalty/expired so sections reload instantly ──
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("token");
+    const socket = socketIO(backendUrl, {
+      auth: { token },
+      transports: ['websocket'],
+      reconnectionAttempts: 3,
+    });
+
+    const refreshAndNotify = (msg) => {
+      fetchData();
+      if (msg) toast.error(msg, { theme: 'dark', position: 'top-center' });
+    };
+
+    // Doctor: penalty was applied for missing an SOS
+    socket.on('penalty:applied', (data) => {
+      refreshAndNotify(data.message || '⚠️ Penalty applied for missed emergency.');
+    });
+
+    // Patient: doctor didn't respond in time
+    socket.on('emergency:expired', (data) => {
+      refreshAndNotify('Doctor unavailable. Finding another specialist...');
+    });
+
+    // General appointment status changes
+    socket.on('appointment:status', () => fetchData());
+    socket.on('emergency:accepted', () => fetchData());
+    socket.on('emergency:reassigned', () => fetchData());
+    socket.on('emergency:new', () => fetchData());
+
+    return () => socket.disconnect();
+  }, [user, backendUrl]);
 
   const handleChatSubmit = async (e) => {
     e.preventDefault();
@@ -148,7 +284,7 @@ const Dashboard = () => {
     fetchData();
   };
 
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async (id, status, reason) => {
     const targetAppt = appointments.find(a => a.id === id);
     if (targetAppt?.status === 'Expired') {
       toast.error("This emergency has expired.");
@@ -157,11 +293,20 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(`${backendUrl}/api/appointments/status/${id}`, 
-        { status }, { headers: { Authorization: `Bearer ${token}` } }
+        { status, reason: reason || undefined }, { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchData();
       toast.success(`${status === 'Confirmed' ? '✅ Accepted' : '❌ Declined'}`);
     } catch (err) { toast.error("Action Failed"); }
+  };
+
+  const openDeclineModal = (apptId, isEmergency) => {
+    setDeclineModal({ open: true, apptId, isEmergency: !!isEmergency });
+  };
+
+  const handleDeclineConfirm = async (reason) => {
+    await handleStatusUpdate(declineModal.apptId, 'Cancelled', reason);
+    setDeclineModal({ open: false, apptId: null, isEmergency: false });
   };
 
   const handleDeleteAppointment = async (id) => {
@@ -195,6 +340,14 @@ const Dashboard = () => {
       {rescheduleAppt && (
         <RescheduleModal isOpen={!!rescheduleAppt} onClose={() => setRescheduleAppt(null)} appointment={rescheduleAppt} onUpdate={fetchData} />
       )}
+
+      {/* Decline Reason Modal */}
+      <DeclineReasonModal
+        isOpen={declineModal.open}
+        isEmergency={declineModal.isEmergency}
+        onConfirm={handleDeclineConfirm}
+        onClose={() => setDeclineModal({ open: false, apptId: null, isEmergency: false })}
+      />
 
       {/* Emergency Triage Queue */}
       {appointments.some(a => a.is_emergency && a.status === 'Pending') && (
@@ -235,7 +388,7 @@ const Dashboard = () => {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleStatusUpdate(appt.id, 'Cancelled')}
+                      onClick={() => openDeclineModal(appt.id, true)}
                       className="p-3 glass rounded-xl text-red-500 border border-red-500/20"
                     >
                       <X className="h-5 w-5" />
@@ -478,7 +631,7 @@ const Dashboard = () => {
                       <>
                         {isDoctor && appt.status === 'Pending' ? (
                           <>
-                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDeleteAppointment(appt.id)}
+                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => openDeclineModal(appt.id, appt.is_emergency)}
                               className="px-3 py-2 rounded-xl border border-red-500/20 text-red-500 text-xs font-bold hover:bg-red-500/10 flex items-center gap-1">
                               <X className="h-3 w-3" /> Decline
                             </motion.button>

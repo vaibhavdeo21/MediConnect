@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, ArrowRight, Loader2, Activity, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, Activity, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import ParticleBackground from '../components/ui/ParticleBackground';
@@ -11,6 +11,12 @@ import GradientText from '../components/ui/GradientText';
 
 const Login = () => {
   const navigate = useNavigate();
+
+  const goHome = () => {
+    // Go back if there's history, otherwise go to home
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/');
+  };
   const { theme } = useContext(AuthContext); 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +69,17 @@ const Login = () => {
         className="relative z-10 max-w-md w-full"
       >
         <div className="glass-card p-8 sm:p-10 border border-[var(--border-primary)]">
+          {/* Back to Home */}
+          <motion.button
+            onClick={goHome}
+            whileHover={{ x: -3 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-6 group"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            Back to Home
+          </motion.button>
+
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
             <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center shadow-glow-cyan">
