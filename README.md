@@ -864,7 +864,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 <div align="center">
 
-Built with ❤️ by the MediConnect Team
+Built with ❤️ by Vaibhav Pratap Deo
 
 **[⬆ Back to Top](#-mediconnect--ai-powered-healthcare-platform)**
 
