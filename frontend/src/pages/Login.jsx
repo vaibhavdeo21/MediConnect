@@ -13,7 +13,6 @@ const Login = () => {
   const navigate = useNavigate();
 
   const goHome = () => {
-    // Go back if there's history, otherwise go to home
     if (window.history.length > 1) navigate(-1);
     else navigate('/');
   };
@@ -30,9 +29,14 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await axios.post(`${backendUrl}/api/auth/login`, formData);
-      localStorage.setItem('token', res.data.token);
-      toast.success("Welcome Back!");
-      window.location.href = '/dashboard'; 
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        if (res.data.user) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        toast.success("Welcome Back!");
+        window.location.href = '/dashboard'; 
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {
@@ -42,14 +46,25 @@ const Login = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
+      if (!credentialResponse?.credential) {
+        toast.error("Google login failed to retrieve credential token.");
+        return;
+      }
       const res = await axios.post(`${backendUrl}/api/auth/google-login`, {
         token: credentialResponse.credential
       });
-      localStorage.setItem('token', res.data.token);
-      toast.success("Google Login Successful!");
-      window.location.href = '/dashboard';
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        if (res.data.user) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        toast.success("Google Login Successful!");
+        window.location.href = '/dashboard';
+      }
     } catch (err) {
-      toast.error("Google Auth Failed");
+      console.error("Google Login Error:", err);
+      const message = err.response?.data?.message || err.message || "Google Auth Failed";
+      toast.error(message);
     }
   };
 
@@ -176,8 +191,11 @@ const Login = () => {
           <div className="flex justify-center">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => toast.error("Google Auth Failed")}
-              theme={theme === 'dark' ? "filled_black" : "outline"}
+              onError={(error) => {
+                console.error("Google OAuth Button Error:", error);
+                toast.error("Google Login Popup Failed or Blocked");
+              }}
+              theme={theme === 'dark' || theme === 'premium' ? "filled_black" : "outline"}
               shape="pill"
               size="large"
             />

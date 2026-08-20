@@ -8,17 +8,44 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const backendUrl = import.meta.env.VITE_API_URL;
   
-  // Theme: dark/light — stored in localStorage, applied via data-theme attribute
-  const [theme, setTheme] = useState(localStorage.getItem('theme_mode') || 'dark');
+  const isPremium = user?.is_premium === true;
 
-  // Apply theme to DOM
+  // Initialize theme from localStorage or default
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme_mode');
+    if (saved) return saved;
+    return 'dark';
+  });
+
+  // Automatically sync default premium theme if user upgrades for the first time
+  useEffect(() => {
+    if (isPremium) {
+      const saved = localStorage.getItem('theme_mode');
+      if (!saved) {
+        setTheme('premium');
+      }
+    }
+  }, [isPremium]);
+
+  // Apply theme to DOM & save to localStorage whenever theme changes
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme_mode', theme);
   }, [theme]);
 
+  // Toggle theme logic
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme(prev => {
+      if (isPremium) {
+        // Premium users cycle: premium (Gold) -> dark -> light -> premium
+        if (prev === 'premium') return 'dark';
+        if (prev === 'dark') return 'light';
+        return 'premium';
+      } else {
+        // Standard users cycle: dark <-> light
+        return prev === 'dark' ? 'light' : 'dark';
+      }
+    });
   };
 
   const normalizeUserData = (data) => {
@@ -100,6 +127,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user,
+      isPremium,
       theme,
       toggleTheme,
       setTheme,

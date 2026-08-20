@@ -53,6 +53,10 @@ const Register = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
+      if (!credentialResponse?.credential) {
+        toast.error("Google authentication failed to retrieve token.");
+        return;
+      }
       const res = await axios.post(`${backendUrl}/api/auth/google-login`, {
         token: credentialResponse.credential,
         role: formData.role,
@@ -60,11 +64,16 @@ const Register = () => {
       });
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
+        if (res.data.user) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
         toast.success("Google Registration Successful!");
         window.location.href = '/dashboard';
       }
     } catch (err) {
-      toast.error("Google Registration Failed");
+      console.error("Google Register Error:", err);
+      const message = err.response?.data?.message || err.message || "Google Registration Failed";
+      toast.error(message);
     }
   };
 
@@ -194,8 +203,16 @@ const Register = () => {
           </div>
 
           <div className="flex justify-center">
-            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => toast.error("Google Auth Failed")}
-              theme={theme === 'dark' ? "filled_black" : "outline"} shape="pill" size="large" />
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={(err) => {
+                console.error("Google OAuth Register Button Error:", err);
+                toast.error("Google Registration Popup Failed or Blocked");
+              }}
+              theme={theme === 'dark' || theme === 'premium' ? "filled_black" : "outline"}
+              shape="pill"
+              size="large"
+            />
           </div>
 
           <p className="text-center text-sm text-[var(--text-muted)] mt-8">

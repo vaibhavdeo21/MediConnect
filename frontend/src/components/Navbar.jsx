@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const Navbar = () => {
-  const { user, theme, toggleTheme, logout } = useContext(AuthContext);
+  const { user, theme, toggleTheme, logout, isPremium } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -19,7 +19,6 @@ const Navbar = () => {
 
   const isDoctor = user?.role === 'doctor';
   const isAdmin = user?.role === 'admin';
-  const isPremium = user?.is_premium;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -66,9 +65,9 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 border-b border-transparent ${
       scrolled ? 'glass-nav' : 'bg-transparent'
-    }`}>
+    } ${isPremium && theme === 'premium' ? 'premium-border' : ''}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[var(--nav-height)]">
           {/* Logo */}
@@ -126,19 +125,30 @@ const Navbar = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)]"
+              className="p-2.5 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)] flex items-center justify-center"
               aria-label="Toggle theme"
+              title={`Current Theme: ${theme.toUpperCase()}. Click to switch.`}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === 'premium' ? (
+                <Crown className="h-4 w-4 text-amber-500 fill-amber-500/20" />
+              ) : theme === 'dark' ? (
+                <Moon className="h-4 w-4 text-cyan-400" />
+              ) : (
+                <Sun className="h-4 w-4 text-amber-500" />
+              )}
             </motion.button>
 
             {user && (
               <>
-                {/* Premium Badge */}
-                {isPremium && (
+                {/* Premium Badge or Upgrade Link */}
+                {isPremium ? (
                   <Link to="/premium-perks" className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
                     <Crown className="h-3 w-3 fill-amber-500" />
                     Premium
+                  </Link>
+                ) : (
+                  <Link to="/subscribe" className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors text-xs font-semibold">
+                    ✨ Upgrade
                   </Link>
                 )}
 
