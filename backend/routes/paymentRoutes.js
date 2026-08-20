@@ -1,12 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const authorize = require('../middleware/authMiddleware');
-// Change handlePaymentSuccess to verifyPayment here:
-const { createCheckoutSession, verifyPayment } = require('../controllers/paymentController');
+const { 
+  createCheckoutSession, 
+  verifyPayment, 
+  getSubscriptionStatus, 
+  cancelSubscription, 
+  getPaymentHistory 
+} = require('../controllers/paymentController');
 
 router.post('/create-checkout-session', authorize, createCheckoutSession);
-
-// Change handlePaymentSuccess to verifyPayment here:
 router.post('/success', authorize, verifyPayment);
+router.get('/subscription-status', authorize, getSubscriptionStatus);
+router.post('/cancel-subscription', authorize, cancelSubscription);
+router.get('/payment-history', authorize, getPaymentHistory);
 
 module.exports = router;

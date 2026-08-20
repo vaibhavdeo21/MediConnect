@@ -225,6 +225,49 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+// Premium & AI Analytics
+const getPremiumAnalytics = async (req, res) => {
+  try {
+    const { rows: [stats] } = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users WHERE is_premium = TRUE) AS total_premium_users,
+        (SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND expires_at > NOW()) AS active_subscriptions,
+        (SELECT COALESCE(SUM(amount), 0) FROM subscriptions WHERE status = 'active') AS total_revenue,
+        (SELECT COUNT(*) FROM subscriptions WHERE plan_type = 'monthly') AS monthly_plans,
+        (SELECT COUNT(*) FROM subscriptions WHERE plan_type = 'annual') AS annual_plans,
+        (SELECT COALESCE(SUM(message_count), 0) FROM ai_usage WHERE usage_date = CURRENT_DATE) AS ai_messages_today,
+        (SELECT COUNT(*) FROM ai_conversations) AS total_ai_conversations,
+        (SELECT COUNT(*) FROM subscriptions WHERE status = 'cancelled' OR cancelled_at IS NOT NULL) AS cancellation_count
+    `);
+
+    const { rows: topAIUsers } = await pool.query(`
+      SELECT u.id, u.full_name, u.email, SUM(au.message_count) as total_messages
+      FROM ai_usage au
+      JOIN users u ON u.id = au.user_id
+      GROUP BY u.id, u.full_name, u.email
+      ORDER BY total_messages DESC
+      LIMIT 5
+    `);
+
+    const { rows: recentSubscriptions } = await pool.query(`
+      SELECT s.*, u.full_name, u.email 
+      FROM subscriptions s
+      JOIN users u ON u.id = s.user_id
+      ORDER BY s.created_at DESC
+      LIMIT 10
+    `);
+
+    res.json({
+      ...stats,
+      top_ai_users: topAIUsers,
+      recent_subscriptions: recentSubscriptions
+    });
+  } catch (err) {
+    console.error('Premium analytics error:', err.message);
+    res.status(500).json({ message: 'Failed to load premium analytics' });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getAllDoctorMetrics,
@@ -232,4 +275,5 @@ module.exports = {
   reversePenalty,
   getFinancialAnalytics,
   getAllUsers,
+  getPremiumAnalytics,
 };

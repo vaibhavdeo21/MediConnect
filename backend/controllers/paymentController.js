@@ -9,7 +9,7 @@ const createCheckoutSession = async (req, res) => {
   const { planType } = req.body;
   const userId = req.user.id;
 
-  // Pricing in Paise (INR): 159900 = ₹1,599
+  // Pricing in Paise (INR): 159900 = ₹1,599 for monthly, e.g., ₹15,999 for annual (1599900)
   const amount = planType === 'annual' ? 1599900 : 159900; 
   const productName = planType === 'annual' ? 'Elite Annual' : 'Elite Monthly';
 
@@ -30,16 +30,15 @@ const createCheckoutSession = async (req, res) => {
         },
       ],
       mode: 'payment',
-      // Redirects back to our frontend success page with the session ID
       success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/subscribe`,
       metadata: {
         userId: userId,
-        planType: planType
+        planType: planType,
+        amount: amount / 100 // storing actual INR amount
       }
     });
 
-    // Return the URL for the frontend to redirect to
     res.json({ url: session.url });
   } catch (error) {
     console.error("Stripe Session Error:", error.message);
@@ -49,35 +48,52 @@ const createCheckoutSession = async (req, res) => {
 
 /**
  * Verify Payment Success
- * Updates user to Premium and rewards Referrers
+ * Updates user to Premium, records subscription, and rewards Referrers
  */
 const verifyPayment = async (req, res) => {
   const { sessionId } = req.body;
 
   try {
-    // 1. Retrieve the session from Stripe to ensure it's paid
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === 'paid') {
       const userId = session.metadata.userId;
+      const planType = session.metadata.planType;
+      const amount = session.metadata.amount;
 
-      // 2. Update User to Premium status in Database
+      // Update User to Premium status with correct interval
+      const interval = planType === 'annual' ? '1 year' : '1 month';
       await pool.query(
-        "UPDATE users SET is_premium = TRUE, subscription_end_date = NOW() + INTERVAL '1 month' WHERE id = $1",
+        `UPDATE users SET is_premium = TRUE, subscription_end_date = NOW() + INTERVAL '${interval}' WHERE id = $1`,
         [userId]
       );
 
-      // 3. Referral Reward Logic
-      // Check if this user was referred by someone
+      // Record subscription
+      await pool.query(
+        `INSERT INTO subscriptions (user_id, stripe_session_id, plan_type, status, amount, expires_at) 
+         VALUES ($1, $2, $3, 'active', $4, NOW() + INTERVAL '${interval}')`,
+        [userId, sessionId, planType, amount]
+      );
+
+      // Referral Reward Logic
       const userResult = await pool.query("SELECT referred_by FROM users WHERE id = $1", [userId]);
       const referrerCode = userResult.rows[0]?.referred_by;
 
       if (referrerCode) {
-        // Option A: Simply log the successful referral
-        console.log(`User ${userId} upgraded. Referrer ${referrerCode} earns a reward.`);
-
-        // Option B: Add credit to Referrer's balance (if you have a balance column)
-        // await pool.query("UPDATE users SET wallet_balance = wallet_balance + 200 WHERE referral_code = $1", [referrerCode]);
+        // Add credit to Referrer's balance
+        await pool.query("UPDATE users SET wallet_balance = wallet_balance + 200 WHERE referral_code = $1", [referrerCode]);
+        
+        const referrerRes = await pool.query("SELECT id, wallet_balance FROM users WHERE referral_code = $1", [referrerCode]);
+        if (referrerRes.rows.length > 0) {
+          const referrerId = referrerRes.rows[0].id;
+          const newBalance = referrerRes.rows[0].wallet_balance;
+          // Record transaction
+          await pool.query(
+            `INSERT INTO transactions (user_id, type, amount, balance_after, description, reference_type, created_by)
+             VALUES ($1, 'referral_bonus', 200, $2, 'Referral bonus for premium upgrade', 'system', 'system')`,
+            [referrerId, newBalance]
+          );
+        }
       }
 
       return res.json({ success: true, message: "Account upgraded to Premium" });
@@ -90,7 +106,69 @@ const verifyPayment = async (req, res) => {
   }
 };
 
+const getSubscriptionStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT *, 
+       EXTRACT(DAY FROM (expires_at - NOW())) as days_remaining 
+       FROM subscriptions 
+       WHERE user_id = $1 AND status = 'active' AND expires_at > NOW() 
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.json({ status: 'none' });
+    }
+  } catch (error) {
+    console.error("Get Subscription Status Error:", error);
+    res.status(500).json({ error: "Failed to get subscription status" });
+  }
+};
+
+const cancelSubscription = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Set cancelled_at, but keep status 'active' until expires_at, or set status 'cancelled' immediately if desired.
+    // The instructions say "Sets cancelled_at, keeps access until expires_at, updates subscription status"
+    // So we'll set status to 'cancelled', but middleware should still allow access if expires_at > NOW().
+    
+    await pool.query(
+      `UPDATE subscriptions 
+       SET cancelled_at = NOW(), status = 'cancelled' 
+       WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()`,
+      [userId]
+    );
+
+    res.json({ message: "Subscription cancelled successfully. You will have access until the end of your billing period." });
+  } catch (error) {
+    console.error("Cancel Subscription Error:", error);
+    res.status(500).json({ error: "Failed to cancel subscription" });
+  }
+};
+
+const getPaymentHistory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      "SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC",
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Get Payment History Error:", error);
+    res.status(500).json({ error: "Failed to get payment history" });
+  }
+};
+
 module.exports = {
   createCheckoutSession,
-  verifyPayment
+  verifyPayment,
+  getSubscriptionStatus,
+  cancelSubscription,
+  getPaymentHistory
 };
